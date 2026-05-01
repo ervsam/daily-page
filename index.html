@@ -248,6 +248,21 @@
       color: var(--accent);
       font-weight: 600;
     }
+
+    /* Sync indicator */
+    .sync-dot {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      transition: background 0.3s;
+    }
+    .sync-dot.synced  { background: var(--accent); opacity: 0.4; }
+    .sync-dot.saving  { background: var(--faint); animation: blink 1s infinite; }
+    .sync-dot.error   { background: #e05252; opacity: 0.8; }
+    @keyframes blink { 0%,100% { opacity: 0.2; } 50% { opacity: 1; } }
   </style>
 </head>
 <body>
@@ -279,6 +294,7 @@
 }
 </script>
 
+<div class="sync-dot saving" id="sync-dot"></div>
 <div class="page">
   <div class="date-label" id="date-label"></div>
 
@@ -300,6 +316,9 @@
 
 <script>
 const STORE_KEY = 'daily-v1';
+const BIN_ID    = '69f4cb4936566621a8139b36';
+const API_KEY   = '$2a$10$Fcuf44kpj4nQgBsWdseMTe5rCkgZvbpTB5bPMXaq/cHoZOuhPLMH6';
+const BIN_URL   = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
 
 // ── Date helpers ──────────────────────────────────────────────────
 
@@ -324,46 +343,86 @@ function formatLabel(ds) {
   return `${DAYS[date.getDay()]}, ${MONTHS[date.getMonth()]} ${d}`;
 }
 
+// ── Sync indicator ────────────────────────────────────────────────
+
+function syncStatus(s) {
+  const el = document.getElementById('sync-dot');
+  if (el) el.className = `sync-dot ${s}`;
+}
+
+// ── JSONBin API ───────────────────────────────────────────────────
+
+async function binFetch() {
+  const res = await fetch(`${BIN_URL}/latest`, {
+    headers: { 'X-Access-Key': API_KEY }
+  });
+  if (!res.ok) throw new Error(res.status);
+  const data = await res.json();
+  return data.record || {};
+}
+
+async function binSave(state) {
+  const res = await fetch(BIN_URL, {
+    method: 'PUT',
+    headers: { 'X-Access-Key': API_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify(state)
+  });
+  if (!res.ok) throw new Error(res.status);
+}
+
+let saveTimer = null;
+function scheduleSave(state) {
+  clearTimeout(saveTimer);
+  syncStatus('saving');
+  saveTimer = setTimeout(async () => {
+    try {
+      await binSave(state);
+      syncStatus('synced');
+    } catch (e) {
+      console.error('Save failed:', e);
+      syncStatus('error');
+    }
+  }, 600);
+}
+
 // ── State ─────────────────────────────────────────────────────────
 
-function loadState() {
-  let state = { todos: {}, habitLog: {}, habits: [] };
+// Single mutable state object — all handlers close over this reference
+const state = { todos: {}, habitLog: {}, habits: [] };
 
-  try {
-    const saved = localStorage.getItem(STORE_KEY);
-    if (saved) state = JSON.parse(saved);
-  } catch (_) {}
-
-  // Merge from Claude's data block in the HTML
+function applyHtmlData() {
   try {
     const data = JSON.parse(document.getElementById('daily-data').textContent);
-
     if (data.habits) state.habits = data.habits;
-
     for (const [date, items] of Object.entries(data.todos || {})) {
       if (!state.todos[date]) state.todos[date] = [];
       const seen = new Set(state.todos[date].map(t => t.id));
       for (const item of items) {
-        if (!seen.has(item.id)) {
+        if (!seen.has(item.id))
           state.todos[date].push({ id: item.id, text: item.text, done: false });
-        }
       }
     }
-  } catch (e) {
-    console.warn('daily-data parse error:', e);
-  }
-
-  return state;
+  } catch (e) { console.warn('daily-data parse error:', e); }
 }
 
-function save(state) {
+function absorb(incoming) {
+  // Replace state contents in-place so all closures stay valid
+  for (const key of Object.keys(state)) delete state[key];
+  Object.assign(state, incoming);
+}
+
+function saveLocal() {
   localStorage.setItem(STORE_KEY, JSON.stringify(state));
+}
+
+function save() {
+  saveLocal();
+  scheduleSave(state);
 }
 
 // ── Habit helpers ─────────────────────────────────────────────────
 
-function calcStreak(state, habit) {
-  // Start from today if done, yesterday if not
+function calcStreak(habit) {
   const startOffset = state.habitLog[TODAY]?.[habit] ? 0 : 1;
   let s = 0;
   for (let i = startOffset; ; i++) {
@@ -381,20 +440,16 @@ const CHECK_SVG = `<svg class="check-icon" width="10" height="8" viewBox="0 0 10
 
 function esc(s) {
   return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-function render(state) {
-  // Date
+function render() {
   document.getElementById('date-label').textContent = formatLabel(TODAY);
 
-  // Todos
-  const todos = state.todos[TODAY] || [];
+  const todos     = state.todos[TODAY] || [];
   const doneCount = todos.filter(t => t.done).length;
-  const total = todos.length;
+  const total     = todos.length;
 
   document.getElementById('todos-label').textContent =
     total > 0 ? `Today · ${doneCount}/${total}` : 'Today';
@@ -421,17 +476,16 @@ function render(state) {
     el.addEventListener('click', e => {
       if (e.target.closest('.btn-del')) return;
       const t = (state.todos[TODAY] || []).find(x => x.id === el.dataset.id);
-      if (t) { t.done = !t.done; save(state); render(state); }
+      if (t) { t.done = !t.done; save(); render(); }
     });
     el.querySelector('.btn-del').addEventListener('click', () => {
       state.todos[TODAY] = (state.todos[TODAY] || []).filter(x => x.id !== el.dataset.id);
-      save(state); render(state);
+      save(); render();
     });
   });
 
-  // Habits
   const habitsEl = document.getElementById('habits-section');
-  const sep = document.getElementById('sep');
+  const sep      = document.getElementById('sep');
 
   if (!state.habits.length) {
     habitsEl.innerHTML = '';
@@ -446,9 +500,9 @@ function render(state) {
     <div class="section-label">Habits</div>
     ${state.habits.map(h => {
       const todayDone = state.habitLog[TODAY]?.[h] || false;
-      const s = calcStreak(state, h);
+      const s = calcStreak(h);
       const dots = Array.from({ length: HISTORY_DAYS }, (_, i) => {
-        const d = dateStr(HISTORY_DAYS - i); // 10 days ago → yesterday
+        const d = dateStr(HISTORY_DAYS - i);
         return `<div class="dot${state.habitLog[d]?.[h] ? ' done' : ''}"></div>`;
       }).join('');
       return `
@@ -467,16 +521,35 @@ function render(state) {
       const h = el.dataset.habit;
       if (!state.habitLog[TODAY]) state.habitLog[TODAY] = {};
       state.habitLog[TODAY][h] = !state.habitLog[TODAY][h];
-      save(state); render(state);
+      save(); render();
     });
   });
 }
 
 // ── Init ──────────────────────────────────────────────────────────
 
-const state = loadState();
-save(state);
-render(state);
+(async () => {
+  // 1. Show cached state instantly
+  try {
+    const cached = localStorage.getItem(STORE_KEY);
+    if (cached) absorb(JSON.parse(cached));
+  } catch (_) {}
+  applyHtmlData();
+  render();
+
+  // 2. Fetch from JSONBin (cross-device source of truth)
+  try {
+    const remote = await binFetch();
+    if (Object.keys(remote).length > 0) absorb(remote);
+    applyHtmlData();
+    saveLocal();
+    render();
+    syncStatus('synced');
+  } catch (e) {
+    console.warn('JSONBin fetch failed, using local cache:', e);
+    syncStatus('error');
+  }
+})();
 
 document.getElementById('add-input').addEventListener('keydown', e => {
   if (e.key !== 'Enter') return;
@@ -484,10 +557,9 @@ document.getElementById('add-input').addEventListener('keydown', e => {
   if (!val) return;
   if (!state.todos[TODAY]) state.todos[TODAY] = [];
   state.todos[TODAY].push({ id: 'u' + Date.now(), text: val, done: false });
-  save(state);
-  render(state);
+  save();
+  render();
   e.target.value = '';
-  // Keep focus so you can add another
   document.getElementById('add-input').focus();
 });
 </script>
