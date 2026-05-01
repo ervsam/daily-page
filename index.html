@@ -286,6 +286,126 @@
       margin-top: -40px;
     }
 
+    /* Pomodoro */
+    .pomo {
+      position: fixed;
+      right: 52px;
+      top: 50%;
+      transform: translateY(-50%);
+      text-align: center;
+      width: 100px;
+    }
+
+    @media (max-width: 960px) { .pomo { display: none; } }
+
+    .pomo-mode {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    .pomo-time {
+      font-size: 32px;
+      font-weight: 300;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.02em;
+      line-height: 1;
+      margin-bottom: 18px;
+    }
+
+    .pomo-time.running { color: var(--accent); }
+
+    .pomo-controls {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 18px;
+    }
+
+    .pomo-btn {
+      background: none;
+      border: 1.5px solid var(--border);
+      color: var(--muted);
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+      line-height: 1;
+    }
+
+    .pomo-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .pomo-btn.primary { border-color: var(--text); color: var(--text); }
+    .pomo-btn.primary:hover { border-color: var(--accent); color: var(--accent); }
+
+    .pomo-dots {
+      display: flex;
+      gap: 5px;
+      justify-content: center;
+    }
+
+    .pomo-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--border);
+      transition: background 0.2s;
+    }
+
+    .pomo-dot.done { background: var(--accent); }
+
+    .pomo-settings-btn {
+      background: none;
+      border: none;
+      color: var(--faint);
+      cursor: pointer;
+      font-size: 12px;
+      margin-top: 14px;
+      padding: 2px;
+      transition: color 0.15s;
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .pomo-settings-btn:hover { color: var(--muted); }
+
+    .pomo-settings {
+      margin-top: 14px;
+      display: none;
+    }
+
+    .pomo-setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+      margin-bottom: 7px;
+    }
+
+    .pomo-setting-row input {
+      width: 32px;
+      background: none;
+      border: none;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+      font-size: 11px;
+      text-align: center;
+      outline: none;
+      font-family: inherit;
+      font-variant-numeric: tabular-nums;
+      padding: 1px 0;
+    }
+
     /* Sync indicator */
     .sync-dot {
       position: fixed;
@@ -305,6 +425,31 @@
 <body>
 
 <div class="sync-dot saving" id="sync-dot"></div>
+
+<div class="pomo" id="pomo">
+  <div class="pomo-mode" id="pomo-mode">Focus</div>
+  <div class="pomo-time" id="pomo-time">25:00</div>
+  <div class="pomo-controls">
+    <button class="pomo-btn primary" id="pomo-toggle">▶</button>
+    <button class="pomo-btn" id="pomo-reset">↺</button>
+  </div>
+  <div class="pomo-dots" id="pomo-dots"></div>
+  <button class="pomo-settings-btn" id="pomo-settings-btn" title="Edit durations">⚙</button>
+  <div class="pomo-settings" id="pomo-settings">
+    <div class="pomo-setting-row">
+      <span>Focus</span>
+      <input type="number" id="set-focus" value="25" min="1" max="120"> min
+    </div>
+    <div class="pomo-setting-row">
+      <span>Short break</span>
+      <input type="number" id="set-short" value="5" min="1" max="60"> min
+    </div>
+    <div class="pomo-setting-row">
+      <span>Long break</span>
+      <input type="number" id="set-long" value="15" min="1" max="60"> min
+    </div>
+  </div>
+</div>
 <div class="page">
   <div class="date-nav">
     <button class="nav-btn" id="btn-prev">‹</button>
@@ -611,6 +756,106 @@ document.getElementById('date-label').addEventListener('click', () => {
     syncStatus('error');
   }
 })();
+
+// ── Pomodoro ──────────────────────────────────────────────────────
+
+const POMO = {
+  durations: { focus: 25 * 60, short: 5 * 60, long: 15 * 60 },
+  mode: 'focus',
+  remaining: 25 * 60,
+  running: false,
+  sessions: 0,
+  interval: null
+};
+
+function pomoFmt(secs) {
+  return `${String(Math.floor(secs / 60)).padStart(2, '0')}:${String(secs % 60).padStart(2, '0')}`;
+}
+
+function pomoRender() {
+  const labels = { focus: 'Focus', short: 'Short Break', long: 'Long Break' };
+  document.getElementById('pomo-mode').textContent = labels[POMO.mode];
+  const timeEl = document.getElementById('pomo-time');
+  timeEl.textContent = pomoFmt(POMO.remaining);
+  timeEl.className = 'pomo-time' + (POMO.running ? ' running' : '');
+  document.getElementById('pomo-toggle').textContent = POMO.running ? '▐▐' : '▶';
+  document.getElementById('pomo-dots').innerHTML = Array.from({ length: 4 }, (_, i) =>
+    `<div class="pomo-dot${i < POMO.sessions ? ' done' : ''}"></div>`
+  ).join('');
+}
+
+function pomoAdvance() {
+  clearInterval(POMO.interval);
+  POMO.running = false;
+
+  if (POMO.mode === 'focus') {
+    POMO.sessions = (POMO.sessions + 1) % 4;
+    POMO.mode = POMO.sessions === 0 ? 'long' : 'short';
+  } else {
+    POMO.mode = 'focus';
+  }
+
+  POMO.remaining = POMO.durations[POMO.mode];
+
+  if (Notification.permission === 'granted') {
+    const body = POMO.mode === 'focus' ? 'Break over — time to focus.' : 'Session done — take a break.';
+    new Notification('Pomodoro', { body });
+  }
+
+  pomoRender();
+}
+
+function pomoToggle() {
+  if (POMO.running) {
+    clearInterval(POMO.interval);
+    POMO.running = false;
+  } else {
+    if (Notification.permission === 'default') Notification.requestPermission();
+    POMO.running = true;
+    POMO.interval = setInterval(() => {
+      POMO.remaining--;
+      if (POMO.remaining <= 0) pomoAdvance();
+      else pomoRender();
+    }, 1000);
+  }
+  pomoRender();
+}
+
+function pomoReset() {
+  clearInterval(POMO.interval);
+  POMO.running = false;
+  POMO.remaining = POMO.durations[POMO.mode];
+  pomoRender();
+}
+
+function pomoApplySettings() {
+  const focus = Math.max(1, parseInt(document.getElementById('set-focus').value) || 25);
+  const short = Math.max(1, parseInt(document.getElementById('set-short').value) || 5);
+  const long  = Math.max(1, parseInt(document.getElementById('set-long').value) || 15);
+  POMO.durations.focus = focus * 60;
+  POMO.durations.short = short * 60;
+  POMO.durations.long  = long * 60;
+  if (!POMO.running) {
+    POMO.remaining = POMO.durations[POMO.mode];
+    pomoRender();
+  }
+}
+
+document.getElementById('pomo-toggle').addEventListener('click', pomoToggle);
+document.getElementById('pomo-reset').addEventListener('click', pomoReset);
+
+document.getElementById('pomo-settings-btn').addEventListener('click', () => {
+  const panel = document.getElementById('pomo-settings');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+});
+
+['set-focus', 'set-short', 'set-long'].forEach(id => {
+  document.getElementById(id).addEventListener('change', pomoApplySettings);
+});
+
+pomoRender();
+
+// ─────────────────────────────────────────────────────────────────
 
 document.getElementById('add-input').addEventListener('keydown', e => {
   if (e.key !== 'Enter') return;
