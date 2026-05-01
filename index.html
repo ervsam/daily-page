@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daily · ervsml</title>
+  <style>
+    :root {
+      --bg: #faf9f7;
+      --text: #1c1c1e;
+      --muted: #8e8e93;
+      --faint: #c7c7cc;
+      --accent: #5a8a6a;
+      --border: #e5e5ea;
+      --done-text: #aeaeb2;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #111110;
+        --text: #f0efec;
+        --muted: #636366;
+        --faint: #3a3a3c;
+        --accent: #6aaa7a;
+        --border: #2c2c2e;
+        --done-text: #48484a;
+      }
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .page {
+      max-width: 560px;
+      margin: 0 auto;
+      padding: 64px 28px 96px;
+    }
+
+    .date-label {
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      text-align: center;
+      margin-bottom: 56px;
+    }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+
+    /* Progress bar */
+    .progress-wrap {
+      height: 2px;
+      background: var(--border);
+      border-radius: 1px;
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 1px;
+      transition: width 0.4s ease;
+    }
+
+    /* Todo list */
+    .todo-list { list-style: none; }
+
+    .todo-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 13px 0;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .todo-item:first-child { border-top: 1px solid var(--border); }
+
+    .check-circle {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 1.5px solid var(--faint);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+    }
+
+    .todo-item.done .check-circle {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .check-icon { display: none; }
+    .todo-item.done .check-icon { display: block; }
+
+    .todo-text {
+      flex: 1;
+      font-size: 16px;
+      line-height: 1.4;
+      transition: color 0.15s;
+    }
+
+    .todo-item.done .todo-text {
+      color: var(--done-text);
+      text-decoration: line-through;
+      text-decoration-color: var(--done-text);
+    }
+
+    .btn-del {
+      opacity: 0;
+      border: none;
+      background: none;
+      color: var(--muted);
+      font-size: 20px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 2px 4px;
+      transition: opacity 0.12s;
+      flex-shrink: 0;
+    }
+
+    .todo-item:hover .btn-del { opacity: 1; }
+
+    /* Add row */
+    .add-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 13px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .add-icon {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 1.5px dashed var(--faint);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--faint);
+      font-size: 15px;
+      line-height: 1;
+    }
+
+    .add-input {
+      flex: 1;
+      border: none;
+      background: none;
+      font-size: 16px;
+      color: var(--text);
+      outline: none;
+      font-family: inherit;
+    }
+
+    .add-input::placeholder { color: var(--faint); }
+
+    /* Separator */
+    .sep {
+      height: 1px;
+      background: var(--border);
+      margin: 56px 0;
+    }
+
+    /* Habits */
+    .habit-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 11px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .habit-row:first-of-type { border-top: 1px solid var(--border); }
+
+    .check-square {
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+      border: 1.5px solid var(--faint);
+      flex-shrink: 0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+    }
+
+    .check-square.done {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .check-square .check-icon { display: none; }
+    .check-square.done .check-icon { display: block; }
+
+    .habit-name {
+      font-size: 14px;
+      flex: 1;
+      min-width: 60px;
+    }
+
+    .habit-dots {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--border);
+    }
+
+    .dot.done { background: var(--accent); }
+
+    .streak-count {
+      font-size: 12px;
+      color: var(--muted);
+      width: 28px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .streak-count.active {
+      color: var(--accent);
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+
+<!--
+  ╔══════════════════════════════════════════════════════╗
+  ║  CLAUDE: Edit this block to add todos or habits.     ║
+  ║                                                      ║
+  ║  Todos: add items under the date key (YYYY-MM-DD).   ║
+  ║  Each item needs a unique id and a text string.      ║
+  ║                                                      ║
+  ║  Habits: add or remove strings from the array.       ║
+  ╚══════════════════════════════════════════════════════╝
+-->
+<script id="daily-data" type="application/json">
+{
+  "habits": [
+    "Exercise",
+    "Read",
+    "Meditate"
+  ],
+  "todos": {
+    "2026-05-01": [
+      { "id": "t1", "text": "Pay rent" },
+      { "id": "t2", "text": "Pick up bound thesis copies from SFU (if not done yesterday)" },
+      { "id": "t3", "text": "Prep for LC session (6:30 PM)" }
+    ]
+  }
+}
+</script>
+
+<div class="page">
+  <div class="date-label" id="date-label"></div>
+
+  <div id="todos-section">
+    <div class="section-label" id="todos-label">Today</div>
+    <div class="progress-wrap" id="progress-wrap" style="display:none">
+      <div class="progress-bar" id="progress-bar" style="width:0%"></div>
+    </div>
+    <ul class="todo-list" id="todo-list"></ul>
+    <div class="add-row">
+      <div class="add-icon">+</div>
+      <input class="add-input" id="add-input" type="text" placeholder="Add a task…" autocomplete="off" />
+    </div>
+  </div>
+
+  <div class="sep" id="sep" style="display:none"></div>
+  <div id="habits-section"></div>
+</div>
+
+<script>
+const STORE_KEY = 'daily-v1';
+
+// ── Date helpers ──────────────────────────────────────────────────
+
+function dateStr(offsetDays) {
+  const d = new Date();
+  d.setDate(d.getDate() - (offsetDays || 0));
+  return [
+    d.getFullYear(),
+    String(d.getMonth() + 1).padStart(2, '0'),
+    String(d.getDate()).padStart(2, '0')
+  ].join('-');
+}
+
+const TODAY = dateStr(0);
+
+function formatLabel(ds) {
+  const [y, m, d] = ds.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  const DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const MONTHS = ['January','February','March','April','May','June',
+                  'July','August','September','October','November','December'];
+  return `${DAYS[date.getDay()]}, ${MONTHS[date.getMonth()]} ${d}`;
+}
+
+// ── State ─────────────────────────────────────────────────────────
+
+function loadState() {
+  let state = { todos: {}, habitLog: {}, habits: [] };
+
+  try {
+    const saved = localStorage.getItem(STORE_KEY);
+    if (saved) state = JSON.parse(saved);
+  } catch (_) {}
+
+  // Merge from Claude's data block in the HTML
+  try {
+    const data = JSON.parse(document.getElementById('daily-data').textContent);
+
+    if (data.habits) state.habits = data.habits;
+
+    for (const [date, items] of Object.entries(data.todos || {})) {
+      if (!state.todos[date]) state.todos[date] = [];
+      const seen = new Set(state.todos[date].map(t => t.id));
+      for (const item of items) {
+        if (!seen.has(item.id)) {
+          state.todos[date].push({ id: item.id, text: item.text, done: false });
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('daily-data parse error:', e);
+  }
+
+  return state;
+}
+
+function save(state) {
+  localStorage.setItem(STORE_KEY, JSON.stringify(state));
+}
+
+// ── Habit helpers ─────────────────────────────────────────────────
+
+function calcStreak(state, habit) {
+  // Start from today if done, yesterday if not
+  const startOffset = state.habitLog[TODAY]?.[habit] ? 0 : 1;
+  let s = 0;
+  for (let i = startOffset; ; i++) {
+    if (state.habitLog[dateStr(i)]?.[habit]) s++;
+    else break;
+  }
+  return s;
+}
+
+// ── Rendering ─────────────────────────────────────────────────────
+
+const CHECK_SVG = `<svg class="check-icon" width="10" height="8" viewBox="0 0 10 8" fill="none">
+  <path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`;
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function render(state) {
+  // Date
+  document.getElementById('date-label').textContent = formatLabel(TODAY);
+
+  // Todos
+  const todos = state.todos[TODAY] || [];
+  const doneCount = todos.filter(t => t.done).length;
+  const total = todos.length;
+
+  document.getElementById('todos-label').textContent =
+    total > 0 ? `Today · ${doneCount}/${total}` : 'Today';
+
+  const progressWrap = document.getElementById('progress-wrap');
+  if (total > 0) {
+    progressWrap.style.display = 'block';
+    document.getElementById('progress-bar').style.width =
+      `${Math.round((doneCount / total) * 100)}%`;
+  } else {
+    progressWrap.style.display = 'none';
+  }
+
+  const list = document.getElementById('todo-list');
+  list.innerHTML = todos.map(t => `
+    <li class="todo-item${t.done ? ' done' : ''}" data-id="${esc(t.id)}">
+      <div class="check-circle">${CHECK_SVG}</div>
+      <span class="todo-text">${esc(t.text)}</span>
+      <button class="btn-del" title="Remove" tabindex="-1">×</button>
+    </li>
+  `).join('');
+
+  list.querySelectorAll('.todo-item').forEach(el => {
+    el.addEventListener('click', e => {
+      if (e.target.closest('.btn-del')) return;
+      const t = (state.todos[TODAY] || []).find(x => x.id === el.dataset.id);
+      if (t) { t.done = !t.done; save(state); render(state); }
+    });
+    el.querySelector('.btn-del').addEventListener('click', () => {
+      state.todos[TODAY] = (state.todos[TODAY] || []).filter(x => x.id !== el.dataset.id);
+      save(state); render(state);
+    });
+  });
+
+  // Habits
+  const habitsEl = document.getElementById('habits-section');
+  const sep = document.getElementById('sep');
+
+  if (!state.habits.length) {
+    habitsEl.innerHTML = '';
+    sep.style.display = 'none';
+    return;
+  }
+
+  sep.style.display = 'block';
+  const HISTORY_DAYS = 10;
+
+  habitsEl.innerHTML = `
+    <div class="section-label">Habits</div>
+    ${state.habits.map(h => {
+      const todayDone = state.habitLog[TODAY]?.[h] || false;
+      const s = calcStreak(state, h);
+      const dots = Array.from({ length: HISTORY_DAYS }, (_, i) => {
+        const d = dateStr(HISTORY_DAYS - i); // 10 days ago → yesterday
+        return `<div class="dot${state.habitLog[d]?.[h] ? ' done' : ''}"></div>`;
+      }).join('');
+      return `
+        <div class="habit-row">
+          <div class="check-square${todayDone ? ' done' : ''}" data-habit="${esc(h)}">${CHECK_SVG}</div>
+          <span class="habit-name">${esc(h)}</span>
+          <div class="habit-dots">${dots}</div>
+          <div class="streak-count${s > 0 ? ' active' : ''}">${s > 0 ? s + 'd' : ''}</div>
+        </div>
+      `;
+    }).join('')}
+  `;
+
+  habitsEl.querySelectorAll('.check-square').forEach(el => {
+    el.addEventListener('click', () => {
+      const h = el.dataset.habit;
+      if (!state.habitLog[TODAY]) state.habitLog[TODAY] = {};
+      state.habitLog[TODAY][h] = !state.habitLog[TODAY][h];
+      save(state); render(state);
+    });
+  });
+}
+
+// ── Init ──────────────────────────────────────────────────────────
+
+const state = loadState();
+save(state);
+render(state);
+
+document.getElementById('add-input').addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  const val = e.target.value.trim();
+  if (!val) return;
+  if (!state.todos[TODAY]) state.todos[TODAY] = [];
+  state.todos[TODAY].push({ id: 'u' + Date.now(), text: val, done: false });
+  save(state);
+  render(state);
+  e.target.value = '';
+  // Keep focus so you can add another
+  document.getElementById('add-input').focus();
+});
+</script>
+
+</body>
+</html>
