@@ -267,33 +267,6 @@
 </head>
 <body>
 
-<!--
-  ╔══════════════════════════════════════════════════════╗
-  ║  CLAUDE: Edit this block to add todos or habits.     ║
-  ║                                                      ║
-  ║  Todos: add items under the date key (YYYY-MM-DD).   ║
-  ║  Each item needs a unique id and a text string.      ║
-  ║                                                      ║
-  ║  Habits: add or remove strings from the array.       ║
-  ╚══════════════════════════════════════════════════════╝
--->
-<script id="daily-data" type="application/json">
-{
-  "habits": [
-    "Exercise",
-    "Read",
-    "Meditate"
-  ],
-  "todos": {
-    "2026-05-01": [
-      { "id": "t1", "text": "Pay rent" },
-      { "id": "t2", "text": "Pick up bound thesis copies from SFU (if not done yesterday)" },
-      { "id": "t3", "text": "Prep for LC session (6:30 PM)" }
-    ]
-  }
-}
-</script>
-
 <div class="sync-dot saving" id="sync-dot"></div>
 <div class="page">
   <div class="date-label" id="date-label"></div>
@@ -361,63 +334,38 @@ async function binFetch() {
   return data.record || {};
 }
 
-async function binSave(state) {
+async function binSave(s) {
   const res = await fetch(BIN_URL, {
     method: 'PUT',
     headers: { 'X-Access-Key': API_KEY, 'Content-Type': 'application/json' },
-    body: JSON.stringify(state)
+    body: JSON.stringify(s)
   });
   if (!res.ok) throw new Error(res.status);
 }
 
 let saveTimer = null;
-function scheduleSave(state) {
+function scheduleSave() {
   clearTimeout(saveTimer);
   syncStatus('saving');
   saveTimer = setTimeout(async () => {
-    try {
-      await binSave(state);
-      syncStatus('synced');
-    } catch (e) {
-      console.error('Save failed:', e);
-      syncStatus('error');
-    }
+    try { await binSave(state); syncStatus('synced'); }
+    catch (e) { console.error('Save failed:', e); syncStatus('error'); }
   }, 600);
 }
 
 // ── State ─────────────────────────────────────────────────────────
 
-// Single mutable state object — all handlers close over this reference
-const state = { todos: {}, habitLog: {}, habits: [] };
-
-function applyHtmlData() {
-  try {
-    const data = JSON.parse(document.getElementById('daily-data').textContent);
-    if (data.habits) state.habits = data.habits;
-    for (const [date, items] of Object.entries(data.todos || {})) {
-      if (!state.todos[date]) state.todos[date] = [];
-      const seen = new Set(state.todos[date].map(t => t.id));
-      for (const item of items) {
-        if (!seen.has(item.id))
-          state.todos[date].push({ id: item.id, text: item.text, done: false });
-      }
-    }
-  } catch (e) { console.warn('daily-data parse error:', e); }
-}
+const DEFAULTS = { todos: {}, habitLog: {}, habits: ['Exercise', 'Read', 'Meditate'] };
+const state = { ...DEFAULTS };
 
 function absorb(incoming) {
-  // Replace state contents in-place so all closures stay valid
   for (const key of Object.keys(state)) delete state[key];
-  Object.assign(state, { todos: {}, habitLog: {}, habits: [], ...incoming });
-}
-
-function saveLocal() {
-  localStorage.setItem(STORE_KEY, JSON.stringify(state));
+  Object.assign(state, { ...DEFAULTS, ...incoming });
 }
 
 function save() {
-  saveLocal();
-  scheduleSave(state);
+  localStorage.setItem(STORE_KEY, JSON.stringify(state));
+  scheduleSave();
 }
 
 // ── Habit helpers ─────────────────────────────────────────────────
@@ -529,21 +477,24 @@ function render() {
 // ── Init ──────────────────────────────────────────────────────────
 
 (async () => {
-  // 1. Show cached state instantly
+  // Show cached state instantly while we fetch
   try {
     const cached = localStorage.getItem(STORE_KEY);
     if (cached) absorb(JSON.parse(cached));
   } catch (_) {}
-  applyHtmlData();
   render();
 
-  // 2. Fetch from JSONBin (cross-device source of truth)
   try {
     const remote = await binFetch();
-    if (Object.keys(remote).length > 0) absorb(remote);
-    applyHtmlData();
-    saveLocal();
-    render();
+    const isValid = Array.isArray(remote.habits) || remote.todos;
+    if (isValid) {
+      absorb(remote);
+      render();
+    } else {
+      // Bin is empty — seed it from current state
+      await binSave(state);
+    }
+    localStorage.setItem(STORE_KEY, JSON.stringify(state));
     syncStatus('synced');
   } catch (e) {
     console.warn('JSONBin fetch failed, using local cache:', e);
