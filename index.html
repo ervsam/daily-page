@@ -408,7 +408,7 @@ function applyHtmlData() {
 function absorb(incoming) {
   // Replace state contents in-place so all closures stay valid
   for (const key of Object.keys(state)) delete state[key];
-  Object.assign(state, incoming);
+  Object.assign(state, { todos: {}, habitLog: {}, habits: [], ...incoming });
 }
 
 function saveLocal() {
