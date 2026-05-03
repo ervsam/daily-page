@@ -193,6 +193,7 @@
     }
 
     .habit-row:first-of-type { border-top: 1px solid var(--border); }
+    .habit-row .btn-del { font-size: 18px; }
 
     .check-square {
       width: 18px;
@@ -714,14 +715,19 @@ function render() {
         return `<div class="dot${state.habitLog[d]?.[h] ? ' done' : ''}"></div>`;
       }).join('');
       return `
-        <div class="habit-row">
+        <div class="habit-row" data-habit="${esc(h)}">
           <div class="check-square${todayDone ? ' done' : ''}" data-habit="${esc(h)}">${CHECK_SVG}</div>
           <span class="habit-name">${esc(h)}</span>
           <div class="habit-dots">${dots}</div>
           <div class="streak-count${s > 0 ? ' active' : ''}">${s > 0 ? s + 'd' : ''}</div>
+          <button class="btn-del" title="Remove habit" tabindex="-1">×</button>
         </div>
       `;
     }).join('')}
+    <div class="add-row">
+      <div class="add-icon">+</div>
+      <input class="add-input" id="add-habit-input" type="text" placeholder="Add a habit…" autocomplete="off" />
+    </div>
   `;
 
   habitsEl.querySelectorAll('.check-square').forEach(el => {
@@ -731,6 +737,24 @@ function render() {
       state.habitLog[TODAY][h] = !state.habitLog[TODAY][h];
       save(); render();
     });
+  });
+
+  habitsEl.querySelectorAll('.habit-row .btn-del').forEach(el => {
+    el.addEventListener('click', () => {
+      const h = el.closest('.habit-row').dataset.habit;
+      state.habits = state.habits.filter(x => x !== h);
+      save(); render();
+    });
+  });
+
+  document.getElementById('add-habit-input').addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    const val = e.target.value.trim();
+    if (!val || state.habits.includes(val)) return;
+    state.habits.push(val);
+    save(); render();
+    // re-focus the new input after render
+    document.getElementById('add-habit-input').focus();
   });
 }
 
