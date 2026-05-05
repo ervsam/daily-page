@@ -7,6 +7,7 @@
   <style>
     :root {
       --bg: #faf9f7;
+      --surface: #ffffff;
       --text: #1c1c1e;
       --muted: #8e8e93;
       --faint: #c7c7cc;
@@ -18,6 +19,7 @@
     @media (prefers-color-scheme: dark) {
       :root {
         --bg: #111110;
+        --surface: #1c1c1e;
         --text: #f0efec;
         --muted: #636366;
         --faint: #3a3a3c;
@@ -297,8 +299,7 @@
     .pomo {
       position: fixed;
       right: 52px;
-      top: 50%;
-      transform: translateY(-50%);
+      top: 48px;
       text-align: center;
       width: 100px;
     }
@@ -429,6 +430,147 @@
       padding: 2px 0;
     }
 
+    /* Projects */
+    .projects-trigger {
+      position: fixed;
+      top: 52px;
+      left: 52px;
+      background: none;
+      border: none;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 0;
+      transition: color 0.15s;
+    }
+    .projects-trigger:hover { color: var(--text); }
+    @media (max-width: 960px) { .projects-trigger { display: none; } }
+
+    .projects-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.15);
+      z-index: 99;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+    .projects-backdrop.open { opacity: 1; pointer-events: all; }
+
+    .projects-panel {
+      position: fixed;
+      top: 0; left: 0;
+      height: 100vh;
+      width: 300px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      z-index: 100;
+      transform: translateX(-100%);
+      transition: transform 0.25s ease;
+      display: flex;
+      flex-direction: column;
+    }
+    .projects-panel.open { transform: translateX(0); }
+
+    .projects-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 28px 24px 20px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .projects-title {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .projects-close {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 20px;
+      cursor: pointer;
+      padding: 0 2px;
+      line-height: 1;
+      transition: color 0.15s;
+    }
+    .projects-close:hover { color: var(--text); }
+
+    .projects-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 0;
+    }
+
+    .project-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px 24px;
+      cursor: pointer;
+      user-select: none;
+      border-bottom: 1px solid var(--border);
+    }
+    .project-item:first-child { border-top: 1px solid var(--border); }
+
+    .project-check {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 1.5px solid var(--faint);
+      flex-shrink: 0;
+      margin-top: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+    }
+    .project-item.done .project-check {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+    .project-item.done .check-icon { display: block; }
+
+    .project-text {
+      flex: 1;
+      font-size: 14px;
+      line-height: 1.5;
+      transition: color 0.15s;
+    }
+    .project-item.done .project-text {
+      color: var(--done-text);
+      text-decoration: line-through;
+      text-decoration-color: var(--done-text);
+    }
+
+    .project-item .btn-del { font-size: 18px; }
+    .project-item:hover .btn-del { opacity: 1; }
+
+    .projects-add {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .projects-add input {
+      width: 100%;
+      border: none;
+      background: none;
+      font-size: 14px;
+      color: var(--text);
+      outline: none;
+      font-family: inherit;
+    }
+    .projects-add input::placeholder { color: var(--faint); }
+
     /* Sync indicator */
     .sync-dot {
       position: fixed;
@@ -448,6 +590,19 @@
 <body>
 
 <div class="sync-dot saving" id="sync-dot"></div>
+
+<button class="projects-trigger" id="projects-trigger">Projects</button>
+<div class="projects-backdrop" id="projects-backdrop"></div>
+<div class="projects-panel" id="projects-panel">
+  <div class="projects-header">
+    <span class="projects-title">Projects</span>
+    <button class="projects-close" id="projects-close">×</button>
+  </div>
+  <div class="projects-list" id="projects-list"></div>
+  <div class="projects-add">
+    <input type="text" id="projects-input" placeholder="Add a project…" autocomplete="off" />
+  </div>
+</div>
 
 <div class="pomo" id="pomo">
   <div class="pomo-mode" id="pomo-mode">Focus</div>
@@ -577,7 +732,7 @@ function scheduleSave() {
 
 // ── State ─────────────────────────────────────────────────────────
 
-const DEFAULTS = { todos: {}, habitLog: {}, habits: ['Exercise', 'Read', 'Meditate'], deletedIds: [] };
+const DEFAULTS = { todos: {}, habitLog: {}, habits: ['Exercise', 'Read', 'Meditate'], deletedIds: [], projects: [] };
 const state = { ...DEFAULTS, deletedIds: [] };
 
 function absorb(incoming) {
@@ -782,6 +937,7 @@ document.getElementById('date-label').addEventListener('click', () => {
     if (cached) absorb(JSON.parse(cached));
   } catch (_) {}
   render();
+  renderProjects();
 
   try {
     const remote = await binFetch();
@@ -794,11 +950,13 @@ document.getElementById('date-label').addEventListener('click', () => {
     carryOver();
     localStorage.setItem(STORE_KEY, JSON.stringify(state));
     render();
+    renderProjects();
     syncStatus('synced');
   } catch (e) {
     console.warn('JSONBin fetch failed, using local cache:', e);
     carryOver();
     render();
+    renderProjects();
     syncStatus('error');
   }
 })();
@@ -901,10 +1059,25 @@ function pomoApplySettings() {
   POMO.durations.focus = focus * 60;
   POMO.durations.short = short * 60;
   POMO.durations.long  = long * 60;
+  localStorage.setItem('pomo-settings', JSON.stringify({ focus, short, long }));
   if (!POMO.running) {
     POMO.remaining = POMO.durations[POMO.mode];
     pomoRender();
   }
+}
+
+function pomoLoadSettings() {
+  try {
+    const s = JSON.parse(localStorage.getItem('pomo-settings'));
+    if (!s) return;
+    POMO.durations.focus = s.focus * 60;
+    POMO.durations.short = s.short * 60;
+    POMO.durations.long  = s.long  * 60;
+    POMO.remaining = POMO.durations[POMO.mode];
+    document.getElementById('set-focus').value = s.focus;
+    document.getElementById('set-short').value = s.short;
+    document.getElementById('set-long').value  = s.long;
+  } catch (_) {}
 }
 
 document.getElementById('pomo-toggle').addEventListener('click', pomoToggle);
@@ -919,7 +1092,64 @@ document.getElementById('pomo-settings-btn').addEventListener('click', () => {
   document.getElementById(id).addEventListener('change', pomoApplySettings);
 });
 
+pomoLoadSettings();
 pomoRender();
+
+// ── Projects ──────────────────────────────────────────────────────
+
+function renderProjects() {
+  const list = document.getElementById('projects-list');
+  const projects = state.projects || [];
+
+  list.innerHTML = projects.map(p => `
+    <div class="project-item${p.done ? ' done' : ''}" data-id="${esc(p.id)}">
+      <div class="project-check">${CHECK_SVG}</div>
+      <span class="project-text">${esc(p.text)}</span>
+      <button class="btn-del" title="Remove" tabindex="-1">×</button>
+    </div>
+  `).join('');
+
+  list.querySelectorAll('.project-item').forEach(el => {
+    el.addEventListener('click', e => {
+      if (e.target.closest('.btn-del')) return;
+      const p = state.projects.find(x => x.id === el.dataset.id);
+      if (p) { p.done = !p.done; save(); renderProjects(); }
+    });
+    el.querySelector('.btn-del').addEventListener('click', () => {
+      state.projects = state.projects.filter(x => x.id !== el.dataset.id);
+      save(); renderProjects();
+    });
+  });
+}
+
+function openProjects() {
+  document.getElementById('projects-panel').classList.add('open');
+  document.getElementById('projects-backdrop').classList.add('open');
+  document.getElementById('projects-input').focus();
+}
+
+function closeProjects() {
+  document.getElementById('projects-panel').classList.remove('open');
+  document.getElementById('projects-backdrop').classList.remove('open');
+}
+
+document.getElementById('projects-trigger').addEventListener('click', openProjects);
+document.getElementById('projects-close').addEventListener('click', closeProjects);
+document.getElementById('projects-backdrop').addEventListener('click', closeProjects);
+
+document.getElementById('projects-input').addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  const val = e.target.value.trim();
+  if (!val) return;
+  if (!state.projects) state.projects = [];
+  state.projects.push({ id: 'p' + Date.now(), text: val, done: false });
+  save(); renderProjects();
+  e.target.value = '';
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeProjects();
+});
 
 // ─────────────────────────────────────────────────────────────────
 
