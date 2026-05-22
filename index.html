@@ -571,6 +571,16 @@
     }
     .projects-add input::placeholder { color: var(--faint); }
 
+    /* Daily why */
+    .daily-why {
+      text-align: center;
+      font-style: italic;
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin-bottom: 36px;
+      line-height: 1.5;
+    }
+
     /* Sync indicator */
     .sync-dot {
       position: fixed;
@@ -629,6 +639,7 @@
   </div>
 </div>
 <div class="page">
+  <p class="daily-why" id="daily-why"></p>
   <div class="date-nav">
     <button class="nav-btn" id="btn-prev">‹</button>
     <div class="date-label" id="date-label" title="Go to today"></div>
@@ -937,6 +948,7 @@ document.getElementById('date-label').addEventListener('click', () => {
     if (cached) absorb(JSON.parse(cached));
   } catch (_) {}
   render();
+  renderWhy();
   renderProjects();
 
   try {
@@ -950,12 +962,14 @@ document.getElementById('date-label').addEventListener('click', () => {
     carryOver();
     localStorage.setItem(STORE_KEY, JSON.stringify(state));
     render();
+    renderWhy();
     renderProjects();
     syncStatus('synced');
   } catch (e) {
     console.warn('JSONBin fetch failed, using local cache:', e);
     carryOver();
     render();
+    renderWhy();
     renderProjects();
     syncStatus('error');
   }
@@ -1096,6 +1110,13 @@ pomoLoadSettings();
 pomoRender();
 
 // ── Projects ──────────────────────────────────────────────────────
+
+function renderWhy() {
+  const el = document.getElementById('daily-why');
+  const why = state.dailyWhy || '';
+  el.textContent = why;
+  el.style.display = why ? 'block' : 'none';
+}
 
 function renderProjects() {
   const list = document.getElementById('projects-list');
