@@ -431,10 +431,15 @@
     }
 
     /* Projects */
-    .projects-trigger {
+    .projects-sidebar {
       position: fixed;
-      top: 52px;
-      left: 52px;
+      top: 48px;
+      left: 40px;
+      width: 160px;
+    }
+    @media (max-width: 960px) { .projects-sidebar { display: none; } }
+
+    .projects-trigger {
       background: none;
       border: none;
       font-size: 10px;
@@ -445,9 +450,10 @@
       cursor: pointer;
       padding: 0;
       transition: color 0.15s;
+      display: block;
+      margin-bottom: 14px;
     }
     .projects-trigger:hover { color: var(--text); }
-    @media (max-width: 960px) { .projects-trigger { display: none; } }
 
     .projects-backdrop {
       position: fixed;
@@ -574,25 +580,22 @@
     }
     .projects-add input::placeholder { color: var(--faint); }
 
-    /* Projects preview (main page) */
-    .projects-preview-label { cursor: pointer; }
-    .projects-preview-label:hover { color: var(--text); }
-
-    .project-preview-item {
-      padding: 10px 0;
-      border-bottom: 1px solid var(--border);
-      font-size: 14px;
+    /* Projects left sidebar list */
+    .project-sidebar-item {
+      font-size: 11px;
       color: var(--muted);
+      opacity: 0.55;
+      padding: 5px 0;
       cursor: pointer;
-      opacity: 0.65;
+      line-height: 1.45;
       transition: opacity 0.15s;
-      line-height: 1.4;
+      border-bottom: 1px solid var(--border);
     }
-    .project-preview-item:first-of-type { border-top: 1px solid var(--border); }
-    .project-preview-item:hover { opacity: 1; }
-    .project-preview-item.done {
+    .project-sidebar-item:first-child { border-top: 1px solid var(--border); }
+    .project-sidebar-item:hover { opacity: 1; }
+    .project-sidebar-item.done {
       text-decoration: line-through;
-      opacity: 0.3;
+      opacity: 0.25;
     }
 
     /* Daily why */
@@ -625,7 +628,10 @@
 
 <div class="sync-dot saving" id="sync-dot"></div>
 
-<button class="projects-trigger" id="projects-trigger">Projects</button>
+<div class="projects-sidebar">
+  <button class="projects-trigger" id="projects-trigger">Projects</button>
+  <div id="projects-sidebar-list"></div>
+</div>
 <div class="projects-backdrop" id="projects-backdrop"></div>
 <div class="projects-panel" id="projects-panel">
   <div class="projects-header">
@@ -686,7 +692,6 @@
 
   <div class="sep" id="sep" style="display:none"></div>
   <div id="habits-section"></div>
-  <div id="projects-preview"></div>
 </div>
 
 <script>
@@ -1141,17 +1146,12 @@ pomoRender();
 // ── Projects ──────────────────────────────────────────────────────
 
 function renderProjectsPreview() {
-  const el = document.getElementById('projects-preview');
+  const el = document.getElementById('projects-sidebar-list');
   const projects = state.projects || [];
-  if (projects.length === 0) { el.innerHTML = ''; return; }
-  el.innerHTML = `
-    <div class="sep"></div>
-    <div class="section-label projects-preview-label">Projects</div>
-    ${projects.map(p => `
-      <div class="project-preview-item${p.done ? ' done' : ''}">${esc(p.text)}</div>
-    `).join('')}
-  `;
-  el.querySelectorAll('.projects-preview-label, .project-preview-item')
+  el.innerHTML = projects.map(p => `
+    <div class="project-sidebar-item${p.done ? ' done' : ''}">${esc(p.text)}</div>
+  `).join('');
+  el.querySelectorAll('.project-sidebar-item')
     .forEach(item => item.addEventListener('click', openProjects));
 }
 
