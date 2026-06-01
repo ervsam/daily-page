@@ -555,13 +555,16 @@
     .project-item:hover .btn-del { opacity: 1; }
 
     .projects-add {
-      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 13px 24px;
       border-top: 1px solid var(--border);
       flex-shrink: 0;
     }
 
     .projects-add input {
-      width: 100%;
+      flex: 1;
       border: none;
       background: none;
       font-size: 14px;
@@ -570,6 +573,27 @@
       font-family: inherit;
     }
     .projects-add input::placeholder { color: var(--faint); }
+
+    /* Projects preview (main page) */
+    .projects-preview-label { cursor: pointer; }
+    .projects-preview-label:hover { color: var(--text); }
+
+    .project-preview-item {
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+      color: var(--muted);
+      cursor: pointer;
+      opacity: 0.65;
+      transition: opacity 0.15s;
+      line-height: 1.4;
+    }
+    .project-preview-item:first-of-type { border-top: 1px solid var(--border); }
+    .project-preview-item:hover { opacity: 1; }
+    .project-preview-item.done {
+      text-decoration: line-through;
+      opacity: 0.3;
+    }
 
     /* Daily why */
     .daily-why {
@@ -610,6 +634,7 @@
   </div>
   <div class="projects-list" id="projects-list"></div>
   <div class="projects-add">
+    <div class="add-icon">+</div>
     <input type="text" id="projects-input" placeholder="Add a project…" autocomplete="off" />
   </div>
 </div>
@@ -661,6 +686,7 @@
 
   <div class="sep" id="sep" style="display:none"></div>
   <div id="habits-section"></div>
+  <div id="projects-preview"></div>
 </div>
 
 <script>
@@ -950,6 +976,7 @@ document.getElementById('date-label').addEventListener('click', () => {
   render();
   renderWhy();
   renderProjects();
+  renderProjectsPreview();
 
   try {
     const remote = await binFetch();
@@ -964,6 +991,7 @@ document.getElementById('date-label').addEventListener('click', () => {
     render();
     renderWhy();
     renderProjects();
+    renderProjectsPreview();
     syncStatus('synced');
   } catch (e) {
     console.warn('JSONBin fetch failed, using local cache:', e);
@@ -971,6 +999,7 @@ document.getElementById('date-label').addEventListener('click', () => {
     render();
     renderWhy();
     renderProjects();
+    renderProjectsPreview();
     syncStatus('error');
   }
 })();
@@ -1111,6 +1140,21 @@ pomoRender();
 
 // ── Projects ──────────────────────────────────────────────────────
 
+function renderProjectsPreview() {
+  const el = document.getElementById('projects-preview');
+  const projects = state.projects || [];
+  if (projects.length === 0) { el.innerHTML = ''; return; }
+  el.innerHTML = `
+    <div class="sep"></div>
+    <div class="section-label projects-preview-label">Projects</div>
+    ${projects.map(p => `
+      <div class="project-preview-item${p.done ? ' done' : ''}">${esc(p.text)}</div>
+    `).join('')}
+  `;
+  el.querySelectorAll('.projects-preview-label, .project-preview-item')
+    .forEach(item => item.addEventListener('click', openProjects));
+}
+
 function renderWhy() {
   const el = document.getElementById('daily-why');
   const why = state.dailyWhy || '';
@@ -1122,23 +1166,23 @@ function renderProjects() {
   const list = document.getElementById('projects-list');
   const projects = state.projects || [];
 
-  list.innerHTML = projects.map(p => `
+  list.innerHTML = projects.length ? projects.map(p => `
     <div class="project-item${p.done ? ' done' : ''}" data-id="${esc(p.id)}">
       <div class="project-check">${CHECK_SVG}</div>
       <span class="project-text">${esc(p.text)}</span>
       <button class="btn-del" title="Remove" tabindex="-1">×</button>
     </div>
-  `).join('');
+  `).join('') : `<p style="padding:24px;font-size:13px;color:var(--faint);text-align:center">No projects yet.<br>Add one below.</p>`;
 
   list.querySelectorAll('.project-item').forEach(el => {
     el.addEventListener('click', e => {
       if (e.target.closest('.btn-del')) return;
       const p = state.projects.find(x => x.id === el.dataset.id);
-      if (p) { p.done = !p.done; save(); renderProjects(); }
+      if (p) { p.done = !p.done; save(); renderProjects(); renderProjectsPreview(); }
     });
-    el.querySelector('.btn-del').addEventListener('click', () => {
+    el.querySelector('.btn-del')?.addEventListener('click', () => {
       state.projects = state.projects.filter(x => x.id !== el.dataset.id);
-      save(); renderProjects();
+      save(); renderProjects(); renderProjectsPreview();
     });
   });
 }
@@ -1164,7 +1208,7 @@ document.getElementById('projects-input').addEventListener('keydown', e => {
   if (!val) return;
   if (!state.projects) state.projects = [];
   state.projects.push({ id: 'p' + Date.now(), text: val, done: false });
-  save(); renderProjects();
+  save(); renderProjects(); renderProjectsPreview();
   e.target.value = '';
 });
 
