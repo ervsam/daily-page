@@ -142,7 +142,7 @@
     }
 
     .todo-item:hover .btn-del,
-    .habit-row:hover .btn-del { opacity: 1; }
+    .sidebar-habit-row:hover .btn-del { opacity: 1; }
 
     /* Add row */
     .add-row {
@@ -186,18 +186,16 @@
       margin: 56px 0;
     }
 
-    /* Habits */
-    .habit-row {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      padding: 11px 0;
-      border-bottom: 1px solid var(--border);
+    /* Dots (used in habit history) */
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--border);
     }
+    .dot.done { background: var(--accent); }
 
-    .habit-row:first-of-type { border-top: 1px solid var(--border); }
-    .habit-row .btn-del { font-size: 18px; }
-
+    /* Check-square (habit checkbox) */
     .check-square {
       width: 18px;
       height: 18px;
@@ -210,48 +208,12 @@
       justify-content: center;
       transition: all 0.15s;
     }
-
     .check-square.done {
       background: var(--accent);
       border-color: var(--accent);
     }
-
     .check-square .check-icon { display: none; }
     .check-square.done .check-icon { display: block; }
-
-    .habit-name {
-      font-size: 14px;
-      flex: 1;
-      min-width: 60px;
-    }
-
-    .habit-dots {
-      display: flex;
-      gap: 4px;
-      align-items: center;
-    }
-
-    .dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: var(--border);
-    }
-
-    .dot.done { background: var(--accent); }
-
-    .streak-count {
-      font-size: 12px;
-      color: var(--muted);
-      width: 28px;
-      text-align: right;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .streak-count.active {
-      color: var(--accent);
-      font-weight: 600;
-    }
 
     /* Date navigation */
     .date-nav {
@@ -430,12 +392,14 @@
       padding: 2px 0;
     }
 
-    /* Projects */
+    /* Left sidebar: Projects + Habits */
     .projects-sidebar {
       position: fixed;
       top: 48px;
       left: 40px;
       width: 160px;
+      max-height: calc(100vh - 60px);
+      overflow-y: auto;
     }
     @media (max-width: 960px) { .projects-sidebar { display: none; } }
 
@@ -580,7 +544,7 @@
     }
     .projects-add input::placeholder { color: var(--faint); }
 
-    /* Projects left sidebar list */
+    /* Projects preview list in sidebar */
     .project-sidebar-item {
       font-size: 11px;
       color: var(--muted);
@@ -596,6 +560,179 @@
     .project-sidebar-item.done {
       text-decoration: line-through;
       opacity: 0.25;
+    }
+
+    /* Sidebar section label (used for Habits heading in sidebar) */
+    .sidebar-section-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-top: 28px;
+      margin-bottom: 10px;
+    }
+
+    /* Sidebar habit rows */
+    .sidebar-habit-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 0 3px;
+      border-top: 1px solid var(--border);
+    }
+    .sidebar-habit-row .btn-del { font-size: 15px; padding: 1px 2px; }
+
+    .sidebar-habit-name {
+      font-size: 11px;
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .sidebar-habit-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 2px 0 6px 26px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sidebar-habit-dots {
+      display: flex;
+      gap: 3px;
+    }
+
+    /* Small dots for sidebar (override default .dot size) */
+    .sidebar-habit-dots .dot {
+      width: 5px;
+      height: 5px;
+    }
+
+    .sidebar-streak {
+      font-size: 10px;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+      flex-shrink: 0;
+    }
+    .sidebar-streak.active {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .sidebar-add-habit {
+      width: 100%;
+      border: none;
+      background: none;
+      font-size: 11px;
+      color: var(--text);
+      outline: none;
+      font-family: inherit;
+      padding: 8px 0 4px;
+      border-top: 1px solid var(--border);
+    }
+    .sidebar-add-habit::placeholder { color: var(--faint); }
+
+    /* Cards board */
+    .cards-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0 12px 10px;
+      position: relative;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      transition: box-shadow 0.15s;
+    }
+    .card:hover {
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .card.dragging {
+      opacity: 0.4;
+    }
+
+    .card-handle {
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: grab;
+      color: var(--faint);
+      font-size: 14px;
+      user-select: none;
+      transition: color 0.15s;
+      margin-bottom: 2px;
+    }
+    .card:hover .card-handle { color: var(--muted); }
+    .card-handle:active { cursor: grabbing; }
+
+    .card-text {
+      width: 100%;
+      border: none;
+      background: none;
+      font-family: inherit;
+      font-size: 13px;
+      color: var(--text);
+      resize: none;
+      outline: none;
+      line-height: 1.6;
+      height: 80px;
+      cursor: text;
+      overflow-y: auto;
+    }
+    .card-text::placeholder { color: var(--faint); }
+
+    .card-del {
+      position: absolute;
+      top: 8px;
+      right: 10px;
+      opacity: 0;
+      border: none;
+      background: none;
+      color: var(--muted);
+      font-size: 17px;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+      transition: opacity 0.12s;
+    }
+    .card:hover .card-del { opacity: 1; }
+
+    .card-placeholder {
+      border: 2px dashed var(--faint);
+      border-radius: 8px;
+      height: 112px;
+      background: transparent;
+      pointer-events: none;
+    }
+
+    .cards-add-btn {
+      display: block;
+      width: 100%;
+      margin-top: 10px;
+      background: none;
+      border: 1.5px dashed var(--faint);
+      border-radius: 8px;
+      color: var(--faint);
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      padding: 10px;
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: inherit;
+      text-align: center;
+    }
+    .cards-add-btn:hover {
+      border-color: var(--muted);
+      color: var(--muted);
     }
 
     /* Daily why */
@@ -628,10 +765,13 @@
 
 <div class="sync-dot saving" id="sync-dot"></div>
 
+<!-- Left sidebar: Projects preview + Habits -->
 <div class="projects-sidebar">
   <button class="projects-trigger" id="projects-trigger">Projects</button>
   <div id="projects-sidebar-list"></div>
+  <div id="sidebar-habits"></div>
 </div>
+
 <div class="projects-backdrop" id="projects-backdrop"></div>
 <div class="projects-panel" id="projects-panel">
   <div class="projects-header">
@@ -669,6 +809,7 @@
     </div>
   </div>
 </div>
+
 <div class="page">
   <p class="daily-why" id="daily-why"></p>
   <div class="date-nav">
@@ -690,8 +831,13 @@
     </div>
   </div>
 
-  <div class="sep" id="sep" style="display:none"></div>
-  <div id="habits-section"></div>
+  <div class="sep"></div>
+
+  <div id="cards-section">
+    <div class="section-label">Cards</div>
+    <div id="cards-grid" class="cards-grid"></div>
+    <button id="cards-add-btn" class="cards-add-btn">+ Add Card</button>
+  </div>
 </div>
 
 <script>
@@ -774,7 +920,10 @@ function scheduleSave() {
 
 // ── State ─────────────────────────────────────────────────────────
 
-const DEFAULTS = { todos: {}, habitLog: {}, habits: ['Exercise', 'Read', 'Meditate'], deletedIds: [], projects: [] };
+const DEFAULTS = {
+  todos: {}, habitLog: {}, habits: ['Exercise', 'Read', 'Meditate'],
+  deletedIds: [], projects: [], cards: []
+};
 const state = { ...DEFAULTS, deletedIds: [] };
 
 function absorb(incoming) {
@@ -794,7 +943,6 @@ function carryOver() {
   const todayIds = new Set(state.todos[TODAY].map(t => t.id));
   const deleted  = new Set(state.deletedIds || []);
 
-  // Find most recent past day that has todos
   for (let i = 1; i <= 30; i++) {
     const d = dateStr(i);
     const past = state.todos[d];
@@ -848,10 +996,6 @@ function render() {
   const total     = todos.length;
 
   document.getElementById('todos-label').textContent =
-    total > 0 ? `${isPast ? '' : 'Today · '}${isPast ? doneCount + '/' + total : doneCount + '/' + total}` : (isPast ? '' : 'Today');
-
-  // Simplify: always show "N/total" when there are todos, "Today" when empty and on today
-  document.getElementById('todos-label').textContent =
     total > 0 ? `${isPast ? formatLabel(viewDate).split(',')[0] : 'Today'} · ${doneCount}/${total}`
               : (isPast ? '' : 'Today');
 
@@ -887,24 +1031,29 @@ function render() {
     });
   });
 
-  // Show add-row only for today
   document.getElementById('add-row').style.display = isPast ? 'none' : 'flex';
+}
 
-  // Habits (always show today's habits regardless of viewDate)
-  const habitsEl = document.getElementById('habits-section');
-  const sep      = document.getElementById('sep');
+// ── Sidebar habits ────────────────────────────────────────────────
 
-  if (!state.habits.length) {
-    habitsEl.innerHTML = '';
-    sep.style.display = 'none';
-    return;
-  }
+function sidebarHabitKeydown(e) {
+  if (e.key !== 'Enter') return;
+  const val = e.target.value.trim();
+  if (!val || state.habits.includes(val)) return;
+  state.habits.push(val);
+  save();
+  renderHabitsSidebar();
+  document.getElementById('sidebar-add-habit')?.focus();
+}
 
-  sep.style.display = 'block';
-  const HISTORY_DAYS = 10;
+function renderHabitsSidebar() {
+  const el = document.getElementById('sidebar-habits');
+  if (!el) return;
 
-  habitsEl.innerHTML = `
-    <div class="section-label">Habits</div>
+  const HISTORY_DAYS = 7;
+
+  el.innerHTML = `
+    <div class="sidebar-section-label">Habits</div>
     ${state.habits.map(h => {
       const todayDone = state.habitLog[TODAY]?.[h] || false;
       const s = calcStreak(h);
@@ -913,48 +1062,152 @@ function render() {
         return `<div class="dot${state.habitLog[d]?.[h] ? ' done' : ''}"></div>`;
       }).join('');
       return `
-        <div class="habit-row" data-habit="${esc(h)}">
+        <div class="sidebar-habit-row" data-habit="${esc(h)}">
           <div class="check-square${todayDone ? ' done' : ''}" data-habit="${esc(h)}">${CHECK_SVG}</div>
-          <span class="habit-name">${esc(h)}</span>
-          <div class="habit-dots">${dots}</div>
-          <div class="streak-count${s > 0 ? ' active' : ''}">${s > 0 ? s + 'd' : ''}</div>
+          <span class="sidebar-habit-name">${esc(h)}</span>
           <button class="btn-del" title="Remove habit" tabindex="-1">×</button>
+        </div>
+        <div class="sidebar-habit-meta">
+          <div class="sidebar-habit-dots">${dots}</div>
+          <span class="sidebar-streak${s > 0 ? ' active' : ''}">${s > 0 ? s + 'd' : ''}</span>
         </div>
       `;
     }).join('')}
-    <div class="add-row">
-      <div class="add-icon">+</div>
-      <input class="add-input" id="add-habit-input" type="text" placeholder="Add a habit…" autocomplete="off" />
-    </div>
+    <input class="sidebar-add-habit" id="sidebar-add-habit" type="text" placeholder="Add a habit…" autocomplete="off" />
   `;
 
-  habitsEl.querySelectorAll('.check-square').forEach(el => {
-    el.addEventListener('click', () => {
-      const h = el.dataset.habit;
+  el.querySelectorAll('.check-square').forEach(sq => {
+    sq.addEventListener('click', () => {
+      const h = sq.dataset.habit;
       if (!state.habitLog[TODAY]) state.habitLog[TODAY] = {};
       state.habitLog[TODAY][h] = !state.habitLog[TODAY][h];
-      save(); render();
+      save();
+      renderHabitsSidebar();
     });
   });
 
-  habitsEl.querySelectorAll('.habit-row .btn-del').forEach(el => {
-    el.addEventListener('click', () => {
-      const h = el.closest('.habit-row').dataset.habit;
+  el.querySelectorAll('.sidebar-habit-row .btn-del').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const h = btn.closest('.sidebar-habit-row').dataset.habit;
       state.habits = state.habits.filter(x => x !== h);
-      save(); render();
+      save();
+      renderHabitsSidebar();
     });
   });
 
-  document.getElementById('add-habit-input').addEventListener('keydown', e => {
-    if (e.key !== 'Enter') return;
-    const val = e.target.value.trim();
-    if (!val || state.habits.includes(val)) return;
-    state.habits.push(val);
-    save(); render();
-    // re-focus the new input after render
-    document.getElementById('add-habit-input').focus();
+  document.getElementById('sidebar-add-habit')?.addEventListener('keydown', sidebarHabitKeydown);
+}
+
+// ── Cards ─────────────────────────────────────────────────────────
+
+let _dragId = null;
+let _placeholder = null;
+
+function renderCards() {
+  const grid = document.getElementById('cards-grid');
+  const cards = state.cards || [];
+
+  grid.innerHTML = cards.map(c => `
+    <div class="card" draggable="true" data-id="${esc(c.id)}">
+      <div class="card-handle">⠿</div>
+      <button class="card-del" title="Delete card" tabindex="-1">×</button>
+      <textarea class="card-text" placeholder="Write a note…" draggable="false">${esc(c.text)}</textarea>
+    </div>
+  `).join('');
+
+  grid.querySelectorAll('.card').forEach(card => {
+    const id = card.dataset.id;
+
+    card.addEventListener('dragstart', e => {
+      _dragId = id;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', id);
+      _placeholder = document.createElement('div');
+      _placeholder.className = 'card-placeholder';
+      requestAnimationFrame(() => card.classList.add('dragging'));
+    });
+
+    card.addEventListener('dragend', () => {
+      card.classList.remove('dragging');
+      _placeholder?.remove();
+      _placeholder = null;
+      _dragId = null;
+    });
+
+    card.querySelector('.card-del').addEventListener('click', () => {
+      state.cards = (state.cards || []).filter(x => x.id !== id);
+      save();
+      renderCards();
+    });
+
+    const ta = card.querySelector('.card-text');
+    // Prevent drag from starting when interacting with the textarea
+    ta.addEventListener('dragstart', e => { e.stopPropagation(); e.preventDefault(); });
+    ta.addEventListener('input', () => {
+      const c = (state.cards || []).find(x => x.id === id);
+      if (c) {
+        c.text = ta.value;
+        localStorage.setItem(STORE_KEY, JSON.stringify(state));
+        scheduleSave();
+      }
+    });
   });
 }
+
+// Grid-level drag handlers attached once (not inside renderCards to avoid duplication)
+(function initCardDragDrop() {
+  const grid = document.getElementById('cards-grid');
+
+  grid.addEventListener('dragover', e => {
+    e.preventDefault();
+    if (!_placeholder) return;
+    e.dataTransfer.dropEffect = 'move';
+
+    const target = e.target.closest('.card');
+    if (!target || target.dataset.id === _dragId) {
+      if (_placeholder.parentNode !== grid) grid.appendChild(_placeholder);
+      return;
+    }
+
+    const rect = target.getBoundingClientRect();
+    if (e.clientY < rect.top + rect.height / 2) {
+      grid.insertBefore(_placeholder, target);
+    } else {
+      target.after(_placeholder);
+    }
+  });
+
+  grid.addEventListener('drop', e => {
+    e.preventDefault();
+    if (!_dragId || !_placeholder?.parentNode) return;
+
+    const newOrderIds = [];
+    for (const child of grid.children) {
+      if (child === _placeholder) {
+        newOrderIds.push(_dragId);
+      } else if (child.classList.contains('card') && child.dataset.id !== _dragId) {
+        newOrderIds.push(child.dataset.id);
+      }
+    }
+    if (!newOrderIds.includes(_dragId)) newOrderIds.push(_dragId);
+
+    const cardMap = Object.fromEntries((state.cards || []).map(c => [c.id, c]));
+    state.cards = newOrderIds.map(id => cardMap[id]).filter(Boolean);
+    save();
+    renderCards();
+  });
+})();
+
+document.getElementById('cards-add-btn').addEventListener('click', () => {
+  const id = 'c' + Date.now();
+  if (!state.cards) state.cards = [];
+  state.cards.push({ id, text: '' });
+  save();
+  renderCards();
+  requestAnimationFrame(() => {
+    document.querySelector(`[data-id="${id}"] .card-text`)?.focus();
+  });
+});
 
 // ── Navigation ────────────────────────────────────────────────────
 
@@ -982,6 +1235,8 @@ document.getElementById('date-label').addEventListener('click', () => {
   renderWhy();
   renderProjects();
   renderProjectsPreview();
+  renderHabitsSidebar();
+  renderCards();
 
   try {
     const remote = await binFetch();
@@ -997,6 +1252,8 @@ document.getElementById('date-label').addEventListener('click', () => {
     renderWhy();
     renderProjects();
     renderProjectsPreview();
+    renderHabitsSidebar();
+    renderCards();
     syncStatus('synced');
   } catch (e) {
     console.warn('JSONBin fetch failed, using local cache:', e);
@@ -1005,6 +1262,8 @@ document.getElementById('date-label').addEventListener('click', () => {
     renderWhy();
     renderProjects();
     renderProjectsPreview();
+    renderHabitsSidebar();
+    renderCards();
     syncStatus('error');
   }
 })();
@@ -1014,12 +1273,12 @@ document.getElementById('date-label').addEventListener('click', () => {
 const POMO = {
   durations: { focus: 25 * 60, short: 5 * 60, long: 15 * 60 },
   mode: 'focus',
-  remaining: 25 * 60,   // seconds left when paused / at rest
+  remaining: 25 * 60,
   running: false,
   sessions: 0,
   interval: null,
-  startedAt: null,      // Date.now() when current run started
-  startRemaining: 0     // POMO.remaining value at that moment
+  startedAt: null,
+  startRemaining: 0
 };
 
 function pomoFmt(secs) {
@@ -1077,7 +1336,6 @@ function pomoAdvance() {
 
 function pomoToggle() {
   if (POMO.running) {
-    // Pause — snapshot current remaining before stopping
     POMO.remaining = Math.ceil(pomoCalcRemaining());
     clearInterval(POMO.interval);
     POMO.running = false;
@@ -1086,7 +1344,6 @@ function pomoToggle() {
     POMO.startedAt = Date.now();
     POMO.startRemaining = POMO.remaining;
     POMO.running = true;
-    // Poll every 500ms so we stay accurate even when throttled
     POMO.interval = setInterval(pomoTick, 500);
   }
   pomoRender();
