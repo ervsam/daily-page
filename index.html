@@ -1850,6 +1850,21 @@ document.getElementById('date-label').addEventListener('click', () => {
   if (viewDate !== TODAY) { viewDate = TODAY; render(); renderWhy(); }
 });
 
+// ── Pomodoro state (declared here so render() can reference POMO.currentTaskId) ──
+
+const POMO = {
+  durations: { focus: 25*60, short: 5*60, long: 15*60 },
+  mode: 'focus',
+  remaining: 25*60,
+  running: false,
+  sessions: 0,
+  interval: null,
+  startedAt: null,
+  startRemaining: 0,
+  currentTask: null,
+  currentTaskId: null
+};
+
 // ── Init ──────────────────────────────────────────────────────────
 
 (async () => {
@@ -1876,19 +1891,6 @@ document.getElementById('date-label').addEventListener('click', () => {
 })();
 
 // ── Pomodoro ──────────────────────────────────────────────────────
-
-const POMO = {
-  durations: { focus: 25*60, short: 5*60, long: 15*60 },
-  mode: 'focus',
-  remaining: 25*60,
-  running: false,
-  sessions: 0,
-  interval: null,
-  startedAt: null,
-  startRemaining: 0,
-  currentTask: null,
-  currentTaskId: null
-};
 
 function pomoFmt(secs) {
   return `${String(Math.floor(secs/60)).padStart(2,'0')}:${String(secs%60).padStart(2,'0')}`;
