@@ -897,11 +897,200 @@
       font-family: inherit;
     }
     @media (max-width: 960px) { .undo-toast { bottom: 80px; } }
+
+    /* ── Focus mode ─────────────────────────────────────────────────── */
+    .focus-exit-btn {
+      display: none;
+      position: fixed;
+      top: 18px;
+      left: 18px;
+      background: none;
+      border: none;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--faint);
+      cursor: pointer;
+      padding: 4px 6px;
+      transition: color 0.15s;
+      z-index: 10;
+    }
+    .focus-exit-btn:hover { color: var(--muted); }
+    body.focus-mode .projects-sidebar { display: none !important; }
+    body.focus-mode .pomo             { display: none !important; }
+    body.focus-mode #cards-section    { display: none !important; }
+    body.focus-mode .sep              { display: none !important; }
+    body.focus-mode .focus-exit-btn   { display: block; }
+
+    /* ── Check-off animation ─────────────────────────────────────────── */
+    @keyframes checkPop {
+      0%   { transform: scale(1); }
+      45%  { transform: scale(1.28); }
+      100% { transform: scale(1); }
+    }
+    .check-circle.pop { animation: checkPop 0.22s ease; }
+
+    /* ── All-done message ────────────────────────────────────────────── */
+    .all-done-msg {
+      display: none;
+      text-align: center;
+      font-size: 12px;
+      color: var(--accent);
+      padding: 6px 0 14px;
+      animation: fadeInMsg 0.4s ease forwards;
+    }
+    @keyframes fadeInMsg { from { opacity: 0; } to { opacity: 1; } }
+
+    /* ── Week sparkline ─────────────────────────────────────────────── */
+    .week-sparkline {
+      display: flex;
+      justify-content: center;
+      gap: 7px;
+      margin-bottom: 44px;
+      margin-top: -36px;
+    }
+    .spark-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      border: 1.5px solid var(--border);
+      cursor: pointer;
+      transition: transform 0.12s;
+      flex-shrink: 0;
+    }
+    .spark-dot:hover { transform: scale(1.3); }
+    .spark-dot.spark-none    { background: transparent; }
+    .spark-dot.spark-partial { background: var(--faint); border-color: var(--faint); }
+    .spark-dot.spark-full    { background: var(--accent); border-color: var(--accent); }
+    .spark-dot.spark-active  { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    /* ── Pomo task + log ─────────────────────────────────────────────── */
+    .pomo-task {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 10px;
+      line-height: 1.35;
+      max-width: 90px;
+      margin-left: auto;
+      margin-right: auto;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .pomo-log {
+      font-size: 9px;
+      color: var(--faint);
+      margin-top: 6px;
+      letter-spacing: 0.03em;
+    }
+
+    /* ── Todo pomo count + link button ──────────────────────────────── */
+    .todo-pomo-count {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--accent);
+      flex-shrink: 0;
+      border: 1px solid var(--accent);
+      border-radius: 3px;
+      padding: 0 4px;
+      line-height: 1.6;
+      opacity: 0.7;
+    }
+    .todo-pomo-btn {
+      opacity: 0;
+      border: none;
+      background: none;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 2px 3px;
+      flex-shrink: 0;
+      transition: opacity 0.12s, color 0.12s;
+      display: flex;
+      align-items: center;
+    }
+    .todo-item:hover .todo-pomo-btn { opacity: 1; }
+    .todo-pomo-btn.active { color: var(--accent); opacity: 1 !important; }
+
+    /* ── Carry to tomorrow button ────────────────────────────────────── */
+    .btn-tomorrow {
+      opacity: 0;
+      border: none;
+      background: none;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 2px 4px;
+      transition: opacity 0.12s;
+      flex-shrink: 0;
+    }
+    .todo-item:hover .btn-tomorrow { opacity: 1; }
+
+    /* ── Project tag on todos ────────────────────────────────────────── */
+    .todo-proj-tag {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      border-radius: 3px;
+      padding: 0 5px;
+      flex-shrink: 0;
+      opacity: 0.65;
+      line-height: 1.8;
+    }
+
+    /* ── Habit week rate ─────────────────────────────────────────────── */
+    .sidebar-week-rate {
+      font-size: 10px;
+      color: var(--faint);
+      font-variant-numeric: tabular-nums;
+      flex-shrink: 0;
+      margin-left: auto;
+    }
+
+    /* ── Card color labels ───────────────────────────────────────────── */
+    :root {
+      --card-red:    #e05252;
+      --card-yellow: #c9a227;
+      --card-blue:   #4a7fc1;
+      --card-purple: #7c5cbf;
+      --card-green:  #5a8a6a;
+    }
+    .card[data-color="red"]    { border-top: 3px solid var(--card-red);    }
+    .card[data-color="yellow"] { border-top: 3px solid var(--card-yellow); }
+    .card[data-color="blue"]   { border-top: 3px solid var(--card-blue);   }
+    .card[data-color="purple"] { border-top: 3px solid var(--card-purple); }
+    .card[data-color="green"]  { border-top: 3px solid var(--card-green);  }
+    .card-colors {
+      position: absolute;
+      top: 6px;
+      left: 8px;
+      display: flex;
+      gap: 4px;
+      opacity: 0;
+      transition: opacity 0.12s;
+      pointer-events: none;
+    }
+    .card:hover .card-colors { opacity: 1; pointer-events: auto; }
+    .card-color-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 1.5px solid transparent;
+      transition: transform 0.1s;
+      flex-shrink: 0;
+    }
+    .card-color-dot:hover { transform: scale(1.3); }
+    .card-color-dot.active { border-color: var(--text); }
   </style>
 </head>
 <body>
 
 <div class="sync-dot saving" id="sync-dot"></div>
+<button class="focus-exit-btn" id="focus-exit-btn">✕ Focus</button>
 
 <!-- Left sidebar: Projects + Habits -->
 <div class="projects-sidebar">
@@ -932,6 +1121,8 @@
     <button class="pomo-btn" id="pomo-reset">↺</button>
   </div>
   <div class="pomo-dots" id="pomo-dots"></div>
+  <div class="pomo-task" id="pomo-task"></div>
+  <div class="pomo-log" id="pomo-log"></div>
   <button class="pomo-settings-btn" id="pomo-settings-btn" title="Edit durations">⚙</button>
   <div class="pomo-settings" id="pomo-settings">
     <div class="pomo-setting-row">
@@ -957,12 +1148,15 @@
     <button class="nav-btn" id="btn-next">›</button>
   </div>
 
+  <div id="week-sparkline" class="week-sparkline"></div>
+
   <div id="todos-section">
     <div class="past-badge" id="past-badge" style="display:none">viewing past</div>
     <div class="section-label" id="todos-label">Today</div>
     <div class="progress-wrap" id="progress-wrap" style="display:none">
       <div class="progress-bar" id="progress-bar" style="width:0%"></div>
     </div>
+    <div class="all-done-msg" id="all-done-msg"></div>
     <ul class="todo-list" id="todo-list"></ul>
     <div class="add-row" id="add-row">
       <div class="add-icon">+</div>
@@ -1094,12 +1288,20 @@ function showUndo(label, restoreFn, commitFn) {
 
 // ── State ─────────────────────────────────────────────────────────
 
-const DEFAULTS = { todos: {}, habitLog: {}, habits: ['Exercise', 'Read', 'Meditate'], deletedIds: [], projects: [], cards: [] };
+const DEFAULTS = { todos: {}, habitLog: {}, habits: ['Exercise', 'Read', 'Meditate'], deletedIds: [], projects: [], cards: [], whyLog: {}, pomoLog: {} };
 const state = { ...DEFAULTS, deletedIds: [] };
 
 function absorb(incoming) {
   for (const key of Object.keys(state)) delete state[key];
-  Object.assign(state, { ...DEFAULTS, ...incoming });
+  const merged = { ...DEFAULTS, ...incoming };
+  // Migrate old dailyWhy string → per-day whyLog
+  if (merged.dailyWhy && !Object.keys(merged.whyLog || {}).length) {
+    merged.whyLog = { [TODAY]: merged.dailyWhy };
+    delete merged.dailyWhy;
+  } else if (merged.dailyWhy) {
+    delete merged.dailyWhy;
+  }
+  Object.assign(state, merged);
 }
 
 // Drop data older than 90 days to stay within JSONBin's 10 KB free-plan limit
@@ -1107,6 +1309,8 @@ function pruneState() {
   const cutoff = dateStr(90);
   for (const key of Object.keys(state.todos))    { if (key < cutoff) delete state.todos[key]; }
   for (const key of Object.keys(state.habitLog)) { if (key < cutoff) delete state.habitLog[key]; }
+  if (state.whyLog)  for (const key of Object.keys(state.whyLog))  { if (key < cutoff) delete state.whyLog[key]; }
+  if (state.pomoLog) for (const key of Object.keys(state.pomoLog)) { if (key < cutoff) delete state.pomoLog[key]; }
   if (state.deletedIds && state.deletedIds.length > 300) state.deletedIds = state.deletedIds.slice(-300);
 }
 
@@ -1150,6 +1354,76 @@ function calcStreak(habit) {
   return s;
 }
 
+function calcWeekRate(habit) {
+  let n = 0;
+  for (let i = 0; i < 7; i++) { if (state.habitLog[dateStr(i)]?.[habit]) n++; }
+  return n;
+}
+
+function formatTimeLeft(todos) {
+  const mins = todos.filter(t => !t.done && t.mins).reduce((s, t) => s + t.mins, 0);
+  if (!mins) return '';
+  const h = Math.floor(mins / 60), m = mins % 60;
+  if (h === 0) return ` · ~${m}m`;
+  if (m === 0) return ` · ~${h}h`;
+  return ` · ~${h}h ${m}m`;
+}
+
+function getProjectName(projectId) {
+  return (state.projects || []).find(p => p.id === projectId)?.text || '';
+}
+
+function updateTabTitle() {
+  const todos = state.todos[viewDate] || [];
+  const done  = todos.filter(t => t.done).length;
+  const total = todos.length;
+  if (POMO.running) document.title = `${pomoFmt(Math.ceil(pomoCalcRemaining()))} · Daily`;
+  else if (total > 0 && done === total) document.title = 'Daily · ✓';
+  else if (total > 0) document.title = `Daily · ${done}/${total}`;
+  else document.title = 'Daily · ervsml';
+}
+
+function renderSparkline() {
+  const el = document.getElementById('week-sparkline');
+  if (!el) return;
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d  = dateStr(i);
+    const ts = state.todos[d] || [];
+    days.push({ d, total: ts.length, done: ts.filter(t => t.done).length });
+  }
+  el.innerHTML = days.map(({ d, total, done }) => {
+    let cls = 'spark-dot';
+    if (d === viewDate)        cls += ' spark-active';
+    if (total === 0)           cls += ' spark-none';
+    else if (done === total)   cls += ' spark-full';
+    else if (done > 0)         cls += ' spark-partial';
+    else                       cls += ' spark-none';
+    return `<div class="${cls}" data-date="${d}" title="${esc(formatLabel(d))}: ${total > 0 ? done + '/' + total : 'no tasks'}"></div>`;
+  }).join('');
+  el.querySelectorAll('.spark-dot').forEach(dot => {
+    dot.addEventListener('click', () => {
+      const d = dot.dataset.date;
+      if (d && d <= TODAY && d >= MIN_DATE) { viewDate = d; render(); renderWhy(); }
+    });
+  });
+}
+
+function focusPomo(taskId, taskText) {
+  POMO.currentTaskId = taskId;
+  POMO.currentTask   = taskText;
+  if (POMO.mode !== 'focus') {
+    clearInterval(POMO.interval);
+    POMO.running   = false;
+    POMO.mode      = 'focus';
+    POMO.remaining = POMO.durations.focus;
+  }
+  if (!POMO.running) pomoToggle();
+  pomoSaveState();
+  pomoRender();
+  render();
+}
+
 // ── Rendering ─────────────────────────────────────────────────────
 
 const CHECK_SVG = `<svg class="check-icon" width="10" height="8" viewBox="0 0 10 8" fill="none">
@@ -1173,7 +1447,7 @@ function render() {
   const isPast = viewDate < TODAY;
 
   document.getElementById('date-label').textContent = formatLabel(viewDate);
-  document.getElementById('btn-prev').disabled = viewDate <= MIN_DATE;  // Fix 6
+  document.getElementById('btn-prev').disabled = viewDate <= MIN_DATE;
   document.getElementById('btn-next').disabled = viewDate >= TODAY;
   document.getElementById('past-badge').style.display = isPast ? 'block' : 'none';
 
@@ -1182,7 +1456,7 @@ function render() {
   const total     = todos.length;
 
   document.getElementById('todos-label').textContent =
-    total > 0 ? `${isPast ? formatLabel(viewDate).split(',')[0] : 'Today'} · ${doneCount}/${total}`
+    total > 0 ? `${isPast ? formatLabel(viewDate).split(',')[0] : 'Today'} · ${doneCount}/${total}${formatTimeLeft(todos)}`
               : (isPast ? '' : 'Today');
 
   const progressWrap = document.getElementById('progress-wrap');
@@ -1193,30 +1467,56 @@ function render() {
     progressWrap.style.display = 'none';
   }
 
+  const allDoneEl = document.getElementById('all-done-msg');
+  if (allDoneEl) {
+    if (total > 0 && doneCount === total) {
+      allDoneEl.textContent = `✓ All clear for ${isPast ? 'that day' : 'today'}.`;
+      allDoneEl.style.display = 'block';
+    } else {
+      allDoneEl.style.display = 'none';
+    }
+  }
+
   const list = document.getElementById('todo-list');
-  list.innerHTML = todos.map(t => `
+  list.innerHTML = todos.map(t => {
+    const projName = t.projectId ? getProjectName(t.projectId) : '';
+    return `
     <li class="todo-item${t.done ? ' done' : ''}" data-id="${esc(t.id)}"${!isPast ? ' draggable="true"' : ''}>
       ${!isPast ? `<div class="todo-drag-handle" title="Drag to reorder">${DRAG_SVG}</div>` : ''}
       <div class="check-circle">${CHECK_SVG}</div>
       <span class="todo-text">${esc(t.text)}</span>
+      ${projName ? `<span class="todo-proj-tag">${esc(projName.slice(0, 12))}</span>` : ''}
+      ${t.pomoCount ? `<span class="todo-pomo-count">${t.pomoCount}</span>` : ''}
+      ${!isPast && !t.done ? `<button class="todo-pomo-btn${POMO.currentTaskId === t.id ? ' active' : ''}" title="Start focus session" tabindex="-1">${POMO_PLAY}</button>` : ''}
+      ${!isPast && !t.done ? `<button class="btn-tomorrow" title="Move to tomorrow" tabindex="-1">→</button>` : ''}
       ${!isPast ? `<button class="btn-del" title="Remove" tabindex="-1">×</button>` : ''}
     </li>
-  `).join('');
+  `;}).join('');
 
   list.querySelectorAll('.todo-item').forEach(el => {
     const id = el.dataset.id;
+    const t  = (state.todos[viewDate] || []).find(x => x.id === id);
 
-    // Click the circle → toggle done
+    // Click circle → toggle done (with pop animation)
     el.querySelector('.check-circle').addEventListener('click', () => {
-      const t = (state.todos[viewDate] || []).find(x => x.id === id);
-      if (t) { t.done = !t.done; save(); render(); }
+      if (!t) return;
+      t.done = !t.done;
+      save();
+      if (t.done) {
+        el.classList.add('done');
+        const circle = el.querySelector('.check-circle');
+        circle.style.background  = 'var(--accent)';
+        circle.style.borderColor = 'var(--accent)';
+        circle.classList.add('pop');
+        setTimeout(() => render(), 230);
+      } else {
+        render();
+      }
     });
 
-    // Click the text → edit in place
+    // Click text → edit in place
     el.querySelector('.todo-text')?.addEventListener('click', () => {
-      if (isPast) return;
-      const t = (state.todos[viewDate] || []).find(x => x.id === id);
-      if (!t) return;
+      if (isPast || !t) return;
       const textEl = el.querySelector('.todo-text');
       if (!textEl) return;
       const input = document.createElement('input');
@@ -1238,7 +1538,7 @@ function render() {
       });
     });
 
-    // Delete with 4-second undo window
+    // Delete with undo
     el.querySelector('.btn-del')?.addEventListener('click', () => {
       const todos = state.todos[viewDate] || [];
       const idx   = todos.findIndex(x => x.id === id);
@@ -1249,6 +1549,32 @@ function render() {
         () => { if (!state.todos[viewDate]) state.todos[viewDate] = []; state.todos[viewDate].splice(idx, 0, item); save(); render(); },
         () => { if (!state.deletedIds.includes(id)) state.deletedIds.push(id); save(); }
       );
+    });
+
+    // Carry to tomorrow
+    el.querySelector('.btn-tomorrow')?.addEventListener('click', () => {
+      if (!t) return;
+      const todos = state.todos[viewDate] || [];
+      const idx   = todos.findIndex(x => x.id === id);
+      state.todos[viewDate] = todos.filter(x => x.id !== id);
+      const tom = shiftDate(TODAY, 1);
+      if (!state.todos[tom]) state.todos[tom] = [];
+      if (!state.todos[tom].find(x => x.id === id)) state.todos[tom].push({ ...t, done: false });
+      save(); render();
+      showUndo('Moved to tomorrow',
+        () => {
+          state.todos[tom] = (state.todos[tom] || []).filter(x => x.id !== id);
+          if (!state.todos[viewDate]) state.todos[viewDate] = [];
+          state.todos[viewDate].splice(idx, 0, t);
+          save(); render();
+        },
+        () => {}
+      );
+    });
+
+    // Focus pomo on this task
+    el.querySelector('.todo-pomo-btn')?.addEventListener('click', () => {
+      if (t) focusPomo(id, t.text);
     });
 
     // Drag to reorder — only initiates from the handle
@@ -1274,6 +1600,8 @@ function render() {
   });
 
   document.getElementById('add-row').style.display = isPast ? 'none' : 'flex';
+  renderSparkline();
+  updateTabTitle();
 }
 
 // ── Habits — shared render into any container ─────────────────────
@@ -1297,6 +1625,7 @@ function renderHabitsInto(el) {
       <div class="sidebar-habit-meta">
         <div class="sidebar-habit-dots">${dots}</div>
         <span class="sidebar-streak${s > 0 ? ' active' : ''}">${s > 0 ? s + 'd' : ''}</span>
+        <span class="sidebar-week-rate">${calcWeekRate(h)}/7w</span>
       </div>
     `;
   }).join('') + `<input class="sidebar-add-habit" type="text" placeholder="Add a habit…" autocomplete="off" />`;
@@ -1351,8 +1680,13 @@ function renderCards() {
   const grid  = document.getElementById('cards-grid');
   const cards = state.cards || [];
 
+  const COLOR_NAMES = ['green','blue','yellow','red','purple'];
   grid.innerHTML = cards.map(c => `
-    <div class="card" draggable="true" data-id="${esc(c.id)}">
+    <div class="card" draggable="true" data-id="${esc(c.id)}"${c.color ? ` data-color="${esc(c.color)}"` : ''}>
+      <div class="card-colors" draggable="false">
+        ${COLOR_NAMES.map(col => `<div class="card-color-dot${c.color === col ? ' active' : ''}" data-color="${col}" draggable="false" style="background:var(--card-${col})" title="${col}"></div>`).join('')}
+        ${c.color ? `<div class="card-color-dot" data-color="" draggable="false" style="background:var(--border)" title="Clear"></div>` : ''}
+      </div>
       <div class="card-handle">${DRAG_SVG}</div>
       <button class="card-del" title="Delete card" tabindex="-1">×</button>
       <input class="card-title" placeholder="Title…" value="${esc(c.title || '')}" draggable="false">
@@ -1404,6 +1738,15 @@ function renderCards() {
       const c = (state.cards || []).find(x => x.id === id);
       if (c) { c.text = ta.value; localStorage.setItem(STORE_KEY, JSON.stringify(state)); scheduleSave(); }
     });
+
+    card.querySelectorAll('.card-color-dot').forEach(dot => {
+      dot.addEventListener('click', e => {
+        e.stopPropagation();
+        const c = (state.cards || []).find(x => x.id === id);
+        if (c) { c.color = dot.dataset.color || null; save(); renderCards(); }
+      });
+    });
+    card.querySelector('.card-colors')?.addEventListener('mousedown', e => e.stopPropagation());
   });
 
   // Add Card button lives inside the grid as a natural grid cell
@@ -1498,13 +1841,13 @@ document.addEventListener('mouseup', () => { _todoHandleDown = false; });
 // ── Navigation ────────────────────────────────────────────────────
 
 document.getElementById('btn-prev').addEventListener('click', () => {
-  if (viewDate > MIN_DATE) { viewDate = shiftDate(viewDate, -1); render(); }
+  if (viewDate > MIN_DATE) { viewDate = shiftDate(viewDate, -1); render(); renderWhy(); }
 });
 document.getElementById('btn-next').addEventListener('click', () => {
-  if (viewDate < TODAY) { viewDate = shiftDate(viewDate, 1); render(); }
+  if (viewDate < TODAY) { viewDate = shiftDate(viewDate, 1); render(); renderWhy(); }
 });
 document.getElementById('date-label').addEventListener('click', () => {
-  if (viewDate !== TODAY) { viewDate = TODAY; render(); }
+  if (viewDate !== TODAY) { viewDate = TODAY; render(); renderWhy(); }
 });
 
 // ── Init ──────────────────────────────────────────────────────────
@@ -1542,7 +1885,9 @@ const POMO = {
   sessions: 0,
   interval: null,
   startedAt: null,
-  startRemaining: 0
+  startRemaining: 0,
+  currentTask: null,
+  currentTaskId: null
 };
 
 function pomoFmt(secs) {
@@ -1565,7 +1910,27 @@ function pomoRender() {
     `<div class="pomo-dot${i < POMO.sessions ? ' done' : ''}"></div>`
   ).join('');
 
-  // Fix 7: update mobile bar
+  // Current task
+  const taskEl = document.getElementById('pomo-task');
+  if (taskEl) taskEl.textContent = POMO.currentTask || '';
+
+  // Session log
+  const logEl = document.getElementById('pomo-log');
+  if (logEl) {
+    const sessions = state.pomoLog?.[TODAY] || 0;
+    if (sessions > 0) {
+      const totalMins = sessions * Math.round(POMO.durations.focus / 60);
+      const h = Math.floor(totalMins / 60), m = totalMins % 60;
+      const timeStr = h > 0 ? `${h}h${m > 0 ? ` ${m}m` : ''}` : `${m}m`;
+      logEl.textContent = `${sessions} today · ${timeStr}`;
+    } else {
+      logEl.textContent = '';
+    }
+  }
+
+  updateTabTitle();
+
+  // Mobile bar
   const mobTime = document.getElementById('mob-pomo-time');
   const mobBtn  = document.getElementById('mob-pomo-btn');
   if (mobTime) { mobTime.textContent = display; mobTime.className = 'mob-pomo-time' + (POMO.running ? ' running' : ''); }
@@ -1580,7 +1945,17 @@ function pomoTick() {
 function pomoAdvance() {
   clearInterval(POMO.interval);
   POMO.running = false;
-  if (POMO.mode === 'focus') {
+  const wasFocus = POMO.mode === 'focus';
+  if (wasFocus) {
+    // Log completed focus session
+    if (!state.pomoLog) state.pomoLog = {};
+    state.pomoLog[TODAY] = (state.pomoLog[TODAY] || 0) + 1;
+    // Increment pomoCount on linked task
+    if (POMO.currentTaskId) {
+      const t = (state.todos[TODAY] || []).find(x => x.id === POMO.currentTaskId);
+      if (t) t.pomoCount = (t.pomoCount || 0) + 1;
+    }
+    save();
     POMO.sessions = (POMO.sessions + 1) % 4;
     POMO.mode = POMO.sessions === 0 ? 'long' : 'short';
   } else {
@@ -1592,6 +1967,7 @@ function pomoAdvance() {
   }
   pomoSaveState();
   pomoRender();
+  if (wasFocus) render();
 }
 
 function pomoToggle() {
@@ -1716,8 +2092,8 @@ function renderProjectsPreview() {
 
 function renderWhy() {
   const el  = document.getElementById('daily-why');
-  const why = state.dailyWhy || '';
-  if (el.contentEditable === 'true') return; // don't clobber active edit
+  const why = state.whyLog?.[viewDate] || '';
+  if (el.contentEditable === 'true') return;
   el.textContent = why || 'Add your daily intention…';
   el.style.opacity = why ? '1' : '0.35';
 }
@@ -1726,12 +2102,15 @@ function renderProjects() {
   const list     = document.getElementById('projects-list');
   const projects = state.projects || [];
   list.innerHTML = projects.length
-    ? projects.map(p => `
+    ? projects.map(p => {
+        const taskCount = (state.todos[TODAY] || []).filter(t => t.projectId === p.id && !t.done).length;
+        return `
         <div class="project-item${p.done ? ' done' : ''}" data-id="${esc(p.id)}">
           <div class="project-check">${CHECK_SVG}</div>
-          <span class="project-text">${esc(p.text)}</span>
+          <span class="project-text">${esc(p.text)}${taskCount > 0 ? ` <span style="opacity:0.45;font-size:11px">(${taskCount})</span>` : ''}</span>
           <button class="btn-del" title="Remove" tabindex="-1">×</button>
-        </div>`).join('')
+        </div>`;
+      }).join('')
     : `<p style="padding:24px;font-size:13px;color:var(--faint);text-align:center">No projects yet.<br>Add one below.</p>`;
 
   list.querySelectorAll('.project-item').forEach(el => {
@@ -1770,12 +2149,11 @@ document.getElementById('projects-input').addEventListener('keydown', e => {
   e.target.value = '';
 });
 
-// Fix 5: dailyWhy click-to-edit
 (function() {
   const el = document.getElementById('daily-why');
   el.addEventListener('click', () => {
     if (el.contentEditable === 'true') return;
-    el.textContent = state.dailyWhy || '';
+    el.textContent = state.whyLog?.[viewDate] || '';
     el.contentEditable = 'true';
     el.classList.add('editing');
     el.focus();
@@ -1787,7 +2165,8 @@ document.getElementById('projects-input').addEventListener('keydown', e => {
     if (el.contentEditable !== 'true') return;
     el.contentEditable = 'false';
     el.classList.remove('editing');
-    state.dailyWhy = el.textContent.trim();
+    if (!state.whyLog) state.whyLog = {};
+    state.whyLog[viewDate] = el.textContent.trim();
     save(); renderWhy();
   });
   el.addEventListener('keydown', e => {
@@ -1813,20 +2192,71 @@ document.getElementById('mob-habits-close').addEventListener('click', closeMobHa
 document.getElementById('sheet-backdrop').addEventListener('click', closeMobHabits);
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closeProjects(); closeMobHabits(); }
+  if (e.key === 'Escape') {
+    closeProjects(); closeMobHabits();
+    document.body.classList.remove('focus-mode');
+  }
+  if (e.key === 'n' && !e.target.matches('input,textarea,[contenteditable]')) {
+    e.preventDefault();
+    document.getElementById('add-input').focus();
+  }
+  if (e.key === 'f' && !e.target.matches('input,textarea,[contenteditable]')) {
+    document.body.classList.toggle('focus-mode');
+  }
+});
+
+document.getElementById('focus-exit-btn').addEventListener('click', () => {
+  document.body.classList.remove('focus-mode');
 });
 
 // ── Add todo ──────────────────────────────────────────────────────
 
 document.getElementById('add-input').addEventListener('keydown', e => {
   if (e.key !== 'Enter') return;
-  const val = e.target.value.trim();
+  let val = e.target.value.trim();
   if (!val) return;
-  if (!state.todos[TODAY]) state.todos[TODAY] = [];
-  state.todos[TODAY].push({ id: 'u' + Date.now(), text: val, done: false });
-  save(); render();
+
+  // @tomorrow routing
+  let targetDate = TODAY;
+  if (val.includes('@tomorrow')) {
+    val = val.replace(/@tomorrow/g, '').trim();
+    targetDate = shiftDate(TODAY, 1);
+  }
+
+  // [N] time estimate
+  let mins = null;
+  const minsMatch = val.match(/\[(\d+)\]/);
+  if (minsMatch) {
+    mins = parseInt(minsMatch[1]);
+    val  = val.replace(minsMatch[0], '').trim();
+  }
+
+  // #project tag
+  let projectId = null;
+  const projMatch = val.match(/#(\S+)/);
+  if (projMatch) {
+    const tag     = projMatch[1].toLowerCase();
+    const matched = (state.projects || []).find(p => p.text.toLowerCase().includes(tag));
+    if (matched) { projectId = matched.id; val = val.replace(projMatch[0], '').trim(); }
+  }
+
+  if (!val) return;
+  if (!state.todos[targetDate]) state.todos[targetDate] = [];
+  const todo = { id: 'u' + Date.now(), text: val, done: false };
+  if (mins)      todo.mins      = mins;
+  if (projectId) todo.projectId = projectId;
+  state.todos[targetDate].push(todo);
+  save();
+  if (targetDate === viewDate) render();
   e.target.value = '';
   document.getElementById('add-input').focus();
+
+  if (targetDate !== TODAY) {
+    showUndo('Scheduled for tomorrow',
+      () => { state.todos[targetDate] = (state.todos[targetDate] || []).filter(t => t.id !== todo.id); save(); },
+      () => {}
+    );
+  }
 });
 </script>
 
