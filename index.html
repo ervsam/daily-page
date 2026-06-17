@@ -1238,8 +1238,9 @@ function render() {
 
     // Drag to reorder — only initiates from the handle
     if (!isPast) {
+      el.querySelector('.todo-drag-handle')?.addEventListener('mousedown', () => { _todoHandleDown = true; });
       el.addEventListener('dragstart', e => {
-        if (!e.target.closest('.todo-drag-handle')) { e.preventDefault(); return; }
+        if (!_todoHandleDown) { e.preventDefault(); return; }
         _todoDragId = id;
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/plain', id);
@@ -1251,7 +1252,8 @@ function render() {
         el.classList.remove('dragging');
         _todoPlaceholder?.remove();
         _todoPlaceholder = null;
-        _todoDragId = null;
+        _todoDragId      = null;
+        _todoHandleDown  = false;
       });
     }
   });
@@ -1443,6 +1445,8 @@ document.getElementById('cards-add-btn').addEventListener('click', () => {
 
 let _todoDragId      = null;
 let _todoPlaceholder = null;
+let _todoHandleDown  = false;
+document.addEventListener('mouseup', () => { _todoHandleDown = false; });
 
 (function initTodoDragDrop() {
   const list = document.getElementById('todo-list');
