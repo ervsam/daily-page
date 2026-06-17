@@ -181,7 +181,7 @@
     .sep {
       height: 1px;
       background: var(--border);
-      margin: 56px 0;
+      margin: 28px 0;
     }
 
     .dot {
@@ -316,10 +316,19 @@
     }
     .pomo-settings-btn:hover { color: var(--muted); }
     .pomo-settings {
+      overflow: hidden;
+      max-height: 0;
+      opacity: 0;
+      pointer-events: none;
+      transition: max-height 0.25s ease, opacity 0.2s ease;
+    }
+    .pomo-settings.open {
+      max-height: 200px;
+      opacity: 1;
+      pointer-events: auto;
       margin-top: 14px;
-      border-top: 1px solid var(--border);
       padding-top: 14px;
-      display: none;
+      border-top: 1px solid var(--border);
     }
     .pomo-setting-row {
       display: flex;
@@ -500,7 +509,7 @@
     .project-sidebar-item {
       font-size: 11px;
       color: var(--muted);
-      opacity: 0.55;
+      opacity: 0.78;
       padding: 5px 0;
       cursor: pointer;
       line-height: 1.45;
@@ -509,7 +518,7 @@
     }
     .project-sidebar-item:first-child { border-top: 1px solid var(--border); }
     .project-sidebar-item:hover { opacity: 1; }
-    .project-sidebar-item.done { text-decoration: line-through; opacity: 0.25; }
+    .project-sidebar-item.done { text-decoration: line-through; opacity: 0.35; }
 
     /* Sidebar habits */
     .sidebar-section-label {
@@ -643,9 +652,6 @@
     }
 
     .cards-add-btn {
-      display: block;
-      width: 100%;
-      margin-top: 10px;
       background: none;
       border: 1.5px dashed var(--faint);
       border-radius: 8px;
@@ -658,6 +664,7 @@
       transition: all 0.15s;
       font-family: inherit;
       text-align: center;
+      min-height: 60px;
     }
     .cards-add-btn:hover { border-color: var(--muted); color: var(--muted); }
 
@@ -968,7 +975,6 @@
   <div id="cards-section">
     <div class="section-label">Cards</div>
     <div id="cards-grid" class="cards-grid"></div>
-    <button id="cards-add-btn" class="cards-add-btn">+ Add Card</button>
   </div>
 </div>
 
@@ -1150,6 +1156,12 @@ const CHECK_SVG = `<svg class="check-icon" width="10" height="8" viewBox="0 0 10
   <path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>`;
 
+const DRAG_SVG = `<svg width="8" height="13" viewBox="0 0 8 13" fill="currentColor" aria-hidden="true">
+  <circle cx="2" cy="2"  r="1.4"/><circle cx="6" cy="2"  r="1.4"/>
+  <circle cx="2" cy="6.5" r="1.4"/><circle cx="6" cy="6.5" r="1.4"/>
+  <circle cx="2" cy="11" r="1.4"/><circle cx="6" cy="11" r="1.4"/>
+</svg>`;
+
 function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
@@ -1181,7 +1193,7 @@ function render() {
   const list = document.getElementById('todo-list');
   list.innerHTML = todos.map(t => `
     <li class="todo-item${t.done ? ' done' : ''}" data-id="${esc(t.id)}"${!isPast ? ' draggable="true"' : ''}>
-      ${!isPast ? `<div class="todo-drag-handle" title="Drag to reorder">⠿</div>` : ''}
+      ${!isPast ? `<div class="todo-drag-handle" title="Drag to reorder">${DRAG_SVG}</div>` : ''}
       <div class="check-circle">${CHECK_SVG}</div>
       <span class="todo-text">${esc(t.text)}</span>
       ${!isPast ? `<button class="btn-del" title="Remove" tabindex="-1">×</button>` : ''}
@@ -1338,7 +1350,7 @@ function renderCards() {
 
   grid.innerHTML = cards.map(c => `
     <div class="card" draggable="true" data-id="${esc(c.id)}">
-      <div class="card-handle">⠿</div>
+      <div class="card-handle">${DRAG_SVG}</div>
       <button class="card-del" title="Delete card" tabindex="-1">×</button>
       <input class="card-title" placeholder="Title…" value="${esc(c.title || '')}" draggable="false">
       <textarea class="card-text" placeholder="Notes…" draggable="false">${esc(c.text)}</textarea>
@@ -1390,6 +1402,19 @@ function renderCards() {
       if (c) { c.text = ta.value; localStorage.setItem(STORE_KEY, JSON.stringify(state)); scheduleSave(); }
     });
   });
+
+  // Add Card button lives inside the grid as a natural grid cell
+  const addBtn = document.createElement('button');
+  addBtn.className = 'cards-add-btn';
+  addBtn.textContent = '+ Add Card';
+  addBtn.addEventListener('click', () => {
+    const id = 'c' + Date.now();
+    if (!state.cards) state.cards = [];
+    state.cards.push({ id, title: '', text: '' });
+    save(); renderCards();
+    requestAnimationFrame(() => document.querySelector(`[data-id="${id}"] .card-title`)?.focus());
+  });
+  grid.appendChild(addBtn);
 }
 
 // Grid-level drag handlers — attached once, not inside renderCards
@@ -1432,14 +1457,6 @@ function renderCards() {
     save(); renderCards();
   });
 })();
-
-document.getElementById('cards-add-btn').addEventListener('click', () => {
-  const id = 'c' + Date.now();
-  if (!state.cards) state.cards = [];
-  state.cards.push({ id, title: '', text: '' });
-  save(); renderCards();
-  requestAnimationFrame(() => document.querySelector(`[data-id="${id}"] .card-title`)?.focus());
-});
 
 // ── Todo drag-to-reorder ──────────────────────────────────────────
 
@@ -1673,8 +1690,7 @@ document.getElementById('pomo-reset').addEventListener('click', pomoReset);
 document.getElementById('mob-pomo-btn').addEventListener('click', pomoToggle);
 
 document.getElementById('pomo-settings-btn').addEventListener('click', () => {
-  const panel = document.getElementById('pomo-settings');
-  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  document.getElementById('pomo-settings').classList.toggle('open');
 });
 ['set-focus','set-short','set-long'].forEach(id =>
   document.getElementById(id).addEventListener('change', pomoApplySettings)
