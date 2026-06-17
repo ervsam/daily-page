@@ -813,6 +813,83 @@
     .sheet-content .sidebar-habit-dots .dot { width: 6px; height: 6px; }
     .sheet-content .sidebar-habit-name { font-size: 13px; }
     .sheet-content .sidebar-add-habit { font-size: 13px; }
+
+    /* Todo drag-to-reorder */
+    .todo-drag-handle {
+      color: var(--faint);
+      font-size: 12px;
+      cursor: grab;
+      flex-shrink: 0;
+      padding: 0 2px;
+      opacity: 0;
+      transition: opacity 0.12s;
+      user-select: none;
+    }
+    .todo-item:hover .todo-drag-handle { opacity: 1; }
+    .todo-drag-handle:active { cursor: grabbing; }
+    .todo-item.dragging { opacity: 0.35; }
+    .todo-placeholder {
+      height: 46px;
+      border: 2px dashed var(--accent);
+      border-radius: 4px;
+      list-style: none;
+      opacity: 0.4;
+    }
+
+    /* Card title */
+    .card-title {
+      display: block;
+      width: 100%;
+      border: none;
+      background: none;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      color: var(--text);
+      outline: none;
+      padding: 0 22px 4px 0;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 6px;
+    }
+    .card-title::placeholder { color: var(--faint); font-weight: 400; }
+    .card-placeholder { height: 150px; }
+
+    /* Undo toast */
+    .undo-toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(72px);
+      background: var(--text);
+      color: var(--bg);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      z-index: 300;
+      opacity: 0;
+      transition: transform 0.22s ease, opacity 0.22s ease;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+    .undo-toast.show { transform: translateX(-50%) translateY(0); opacity: 1; pointer-events: all; }
+    .undo-toast button {
+      background: none;
+      border: 1.5px solid currentColor;
+      color: inherit;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 3px 9px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    @media (max-width: 960px) { .undo-toast { bottom: 80px; } }
   </style>
 </head>
 <body>
@@ -915,6 +992,11 @@
 </div>
 <div class="sheet-backdrop" id="sheet-backdrop"></div>
 
+<div class="undo-toast" id="undo-toast">
+  <span id="undo-label"></span>
+  <button id="undo-btn">Undo</button>
+</div>
+
 <script>
 const STORE_KEY = 'daily-v1';
 const BIN_ID    = '69f4cb4936566621a8139b36';
@@ -982,6 +1064,28 @@ function scheduleSave() {
   }, 600);
 }
 
+// ── Undo toast ────────────────────────────────────────────────────
+
+let _undoTimer  = null;
+let _undoCommit = null;
+
+function showUndo(label, restoreFn, commitFn) {
+  if (_undoCommit) { clearTimeout(_undoTimer); _undoCommit(); _undoCommit = null; }
+  _undoCommit = commitFn;
+  document.getElementById('undo-label').textContent = label;
+  document.getElementById('undo-toast').classList.add('show');
+  document.getElementById('undo-btn').onclick = () => {
+    clearTimeout(_undoTimer);
+    _undoCommit = null;
+    document.getElementById('undo-toast').classList.remove('show');
+    restoreFn();
+  };
+  _undoTimer = setTimeout(() => {
+    document.getElementById('undo-toast').classList.remove('show');
+    if (_undoCommit) { _undoCommit(); _undoCommit = null; }
+  }, 4000);
+}
+
 // ── State ─────────────────────────────────────────────────────────
 
 const DEFAULTS = { todos: {}, habitLog: {}, habits: ['Exercise', 'Read', 'Meditate'], deletedIds: [], projects: [], cards: [] };
@@ -992,7 +1096,16 @@ function absorb(incoming) {
   Object.assign(state, { ...DEFAULTS, ...incoming });
 }
 
+// Drop data older than 90 days to stay within JSONBin's 10 KB free-plan limit
+function pruneState() {
+  const cutoff = dateStr(90);
+  for (const key of Object.keys(state.todos))    { if (key < cutoff) delete state.todos[key]; }
+  for (const key of Object.keys(state.habitLog)) { if (key < cutoff) delete state.habitLog[key]; }
+  if (state.deletedIds && state.deletedIds.length > 300) state.deletedIds = state.deletedIds.slice(-300);
+}
+
 function save() {
+  pruneState();
   localStorage.setItem(STORE_KEY, JSON.stringify(state));
   scheduleSave();
 }
@@ -1067,7 +1180,8 @@ function render() {
 
   const list = document.getElementById('todo-list');
   list.innerHTML = todos.map(t => `
-    <li class="todo-item${t.done ? ' done' : ''}" data-id="${esc(t.id)}">
+    <li class="todo-item${t.done ? ' done' : ''}" data-id="${esc(t.id)}"${!isPast ? ' draggable="true"' : ''}>
+      ${!isPast ? `<div class="todo-drag-handle" title="Drag to reorder">⠿</div>` : ''}
       <div class="check-circle">${CHECK_SVG}</div>
       <span class="todo-text">${esc(t.text)}</span>
       ${!isPast ? `<button class="btn-del" title="Remove" tabindex="-1">×</button>` : ''}
@@ -1075,16 +1189,18 @@ function render() {
   `).join('');
 
   list.querySelectorAll('.todo-item').forEach(el => {
+    const id = el.dataset.id;
+
     // Click the circle → toggle done
     el.querySelector('.check-circle').addEventListener('click', () => {
-      const t = (state.todos[viewDate] || []).find(x => x.id === el.dataset.id);
+      const t = (state.todos[viewDate] || []).find(x => x.id === id);
       if (t) { t.done = !t.done; save(); render(); }
     });
 
     // Click the text → edit in place
     el.querySelector('.todo-text')?.addEventListener('click', () => {
       if (isPast) return;
-      const t = (state.todos[viewDate] || []).find(x => x.id === el.dataset.id);
+      const t = (state.todos[viewDate] || []).find(x => x.id === id);
       if (!t) return;
       const textEl = el.querySelector('.todo-text');
       if (!textEl) return;
@@ -1107,12 +1223,37 @@ function render() {
       });
     });
 
+    // Delete with 4-second undo window
     el.querySelector('.btn-del')?.addEventListener('click', () => {
-      const id = el.dataset.id;
-      state.todos[viewDate] = (state.todos[viewDate] || []).filter(x => x.id !== id);
-      if (!state.deletedIds.includes(id)) state.deletedIds.push(id);
+      const todos = state.todos[viewDate] || [];
+      const idx   = todos.findIndex(x => x.id === id);
+      const item  = todos[idx];
+      state.todos[viewDate] = todos.filter(x => x.id !== id);
       save(); render();
+      showUndo('Task deleted',
+        () => { if (!state.todos[viewDate]) state.todos[viewDate] = []; state.todos[viewDate].splice(idx, 0, item); save(); render(); },
+        () => { if (!state.deletedIds.includes(id)) state.deletedIds.push(id); save(); }
+      );
     });
+
+    // Drag to reorder — only initiates from the handle
+    if (!isPast) {
+      el.addEventListener('dragstart', e => {
+        if (!e.target.closest('.todo-drag-handle')) { e.preventDefault(); return; }
+        _todoDragId = id;
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', id);
+        _todoPlaceholder = document.createElement('li');
+        _todoPlaceholder.className = 'todo-placeholder';
+        requestAnimationFrame(() => el.classList.add('dragging'));
+      });
+      el.addEventListener('dragend', () => {
+        el.classList.remove('dragging');
+        _todoPlaceholder?.remove();
+        _todoPlaceholder = null;
+        _todoDragId = null;
+      });
+    }
   });
 
   document.getElementById('add-row').style.display = isPast ? 'none' : 'flex';
@@ -1154,9 +1295,14 @@ function renderHabitsInto(el) {
 
   el.querySelectorAll('.sidebar-habit-row .btn-del').forEach(btn => {
     btn.addEventListener('click', () => {
-      const h = btn.closest('.sidebar-habit-row').dataset.habit;
+      const h   = btn.closest('.sidebar-habit-row').dataset.habit;
+      const idx = state.habits.indexOf(h);
       state.habits = state.habits.filter(x => x !== h);
       save(); renderAllHabits();
+      showUndo('Habit deleted',
+        () => { state.habits.splice(idx, 0, h); save(); renderAllHabits(); },
+        () => {}
+      );
     });
   });
 
@@ -1192,7 +1338,8 @@ function renderCards() {
     <div class="card" draggable="true" data-id="${esc(c.id)}">
       <div class="card-handle">⠿</div>
       <button class="card-del" title="Delete card" tabindex="-1">×</button>
-      <textarea class="card-text" placeholder="Write a note…" draggable="false">${esc(c.text)}</textarea>
+      <input class="card-title" placeholder="Title…" value="${esc(c.title || '')}" draggable="false">
+      <textarea class="card-text" placeholder="Notes…" draggable="false">${esc(c.text)}</textarea>
     </div>
   `).join('');
 
@@ -1216,8 +1363,22 @@ function renderCards() {
     });
 
     card.querySelector('.card-del').addEventListener('click', () => {
-      state.cards = (state.cards || []).filter(x => x.id !== id);
+      const cards = state.cards || [];
+      const idx   = cards.findIndex(x => x.id === id);
+      const item  = cards[idx];
+      state.cards = cards.filter(x => x.id !== id);
       save(); renderCards();
+      showUndo('Card deleted',
+        () => { state.cards = state.cards || []; state.cards.splice(idx, 0, item); save(); renderCards(); },
+        () => {}
+      );
+    });
+
+    const titleEl = card.querySelector('.card-title');
+    titleEl.addEventListener('dragstart', e => { e.stopPropagation(); e.preventDefault(); });
+    titleEl.addEventListener('input', () => {
+      const c = (state.cards || []).find(x => x.id === id);
+      if (c) { c.title = titleEl.value; localStorage.setItem(STORE_KEY, JSON.stringify(state)); scheduleSave(); }
     });
 
     const ta = card.querySelector('.card-text');
@@ -1273,10 +1434,42 @@ function renderCards() {
 document.getElementById('cards-add-btn').addEventListener('click', () => {
   const id = 'c' + Date.now();
   if (!state.cards) state.cards = [];
-  state.cards.push({ id, text: '' });
+  state.cards.push({ id, title: '', text: '' });
   save(); renderCards();
-  requestAnimationFrame(() => document.querySelector(`[data-id="${id}"] .card-text`)?.focus());
+  requestAnimationFrame(() => document.querySelector(`[data-id="${id}"] .card-title`)?.focus());
 });
+
+// ── Todo drag-to-reorder ──────────────────────────────────────────
+
+let _todoDragId      = null;
+let _todoPlaceholder = null;
+
+(function initTodoDragDrop() {
+  const list = document.getElementById('todo-list');
+  list.addEventListener('dragover', e => {
+    e.preventDefault();
+    if (!_todoPlaceholder) return;
+    e.dataTransfer.dropEffect = 'move';
+    const target = e.target.closest('.todo-item');
+    if (!target || target.dataset.id === _todoDragId) return;
+    const rect = target.getBoundingClientRect();
+    if (e.clientY < rect.top + rect.height / 2) list.insertBefore(_todoPlaceholder, target);
+    else target.after(_todoPlaceholder);
+  });
+  list.addEventListener('drop', e => {
+    e.preventDefault();
+    if (!_todoDragId || !_todoPlaceholder?.parentNode) return;
+    const newIds = [];
+    for (const child of list.children) {
+      if (child === _todoPlaceholder) newIds.push(_todoDragId);
+      else if (child.classList.contains('todo-item') && child.dataset.id !== _todoDragId) newIds.push(child.dataset.id);
+    }
+    if (!newIds.includes(_todoDragId)) newIds.push(_todoDragId);
+    const map = Object.fromEntries((state.todos[viewDate] || []).map(t => [t.id, t]));
+    state.todos[viewDate] = newIds.map(id => map[id]).filter(Boolean);
+    save(); render();
+  });
+})();
 
 // ── Navigation ────────────────────────────────────────────────────
 
