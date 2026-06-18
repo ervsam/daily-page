@@ -255,14 +255,29 @@
     }
     @media (max-width: 960px) { .pomo { display: none; } }
 
-    .pomo-mode {
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--muted);
+    .pomo-modes {
+      display: flex;
+      justify-content: center;
+      gap: 1px;
       margin-bottom: 10px;
     }
+    .pomo-mode-btn {
+      background: none;
+      border: none;
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--faint);
+      cursor: pointer;
+      padding: 3px 5px;
+      border-radius: 4px;
+      transition: color 0.15s, background 0.15s;
+      font-family: inherit;
+      line-height: 1;
+    }
+    .pomo-mode-btn:hover { color: var(--muted); }
+    .pomo-mode-btn.active { color: var(--text); background: var(--border); }
     .pomo-time {
       font-size: 32px;
       font-weight: 300;
@@ -607,6 +622,7 @@
       user-select: none;
       transition: color 0.15s;
       margin-bottom: 2px;
+      position: relative;
     }
     .card:hover .card-handle { color: var(--muted); }
     .card-handle:active { cursor: grabbing; }
@@ -1058,17 +1074,19 @@
       --card-purple: #7c5cbf;
       --card-green:  #5a8a6a;
     }
-    .card[data-color="red"]    { border-top: 3px solid var(--card-red);    }
-    .card[data-color="yellow"] { border-top: 3px solid var(--card-yellow); }
-    .card[data-color="blue"]   { border-top: 3px solid var(--card-blue);   }
-    .card[data-color="purple"] { border-top: 3px solid var(--card-purple); }
-    .card[data-color="green"]  { border-top: 3px solid var(--card-green);  }
+    .card[data-color="red"]    { border-left: 2px solid var(--card-red);    }
+    .card[data-color="yellow"] { border-left: 2px solid var(--card-yellow); }
+    .card[data-color="blue"]   { border-left: 2px solid var(--card-blue);   }
+    .card[data-color="purple"] { border-left: 2px solid var(--card-purple); }
+    .card[data-color="green"]  { border-left: 2px solid var(--card-green);  }
     .card-colors {
       position: absolute;
-      top: 6px;
-      left: 8px;
+      left: 0;
+      top: 0;
+      bottom: 0;
       display: flex;
       gap: 4px;
+      align-items: center;
       opacity: 0;
       transition: opacity 0.12s;
       pointer-events: none;
@@ -1114,7 +1132,11 @@
 </div>
 
 <div class="pomo" id="pomo">
-  <div class="pomo-mode" id="pomo-mode">Focus</div>
+  <div class="pomo-modes" id="pomo-modes">
+    <button class="pomo-mode-btn active" data-mode="focus">Focus</button>
+    <button class="pomo-mode-btn" data-mode="short">Short</button>
+    <button class="pomo-mode-btn" data-mode="long">Long</button>
+  </div>
   <div class="pomo-time" id="pomo-time">25:00</div>
   <div class="pomo-controls">
     <button class="pomo-btn primary" id="pomo-toggle">▶</button>
@@ -1683,11 +1705,13 @@ function renderCards() {
   const COLOR_NAMES = ['green','blue','yellow','red','purple'];
   grid.innerHTML = cards.map(c => `
     <div class="card" draggable="true" data-id="${esc(c.id)}"${c.color ? ` data-color="${esc(c.color)}"` : ''}>
-      <div class="card-colors" draggable="false">
-        ${COLOR_NAMES.map(col => `<div class="card-color-dot${c.color === col ? ' active' : ''}" data-color="${col}" draggable="false" style="background:var(--card-${col})" title="${col}"></div>`).join('')}
-        ${c.color ? `<div class="card-color-dot" data-color="" draggable="false" style="background:var(--border)" title="Clear"></div>` : ''}
+      <div class="card-handle">
+        <div class="card-colors" draggable="false">
+          ${COLOR_NAMES.map(col => `<div class="card-color-dot${c.color === col ? ' active' : ''}" data-color="${col}" draggable="false" style="background:var(--card-${col})" title="${col}"></div>`).join('')}
+          ${c.color ? `<div class="card-color-dot" data-color="" draggable="false" style="background:var(--border)" title="Clear"></div>` : ''}
+        </div>
+        ${DRAG_SVG}
       </div>
-      <div class="card-handle">${DRAG_SVG}</div>
       <button class="card-del" title="Delete card" tabindex="-1">×</button>
       <input class="card-title" placeholder="Title…" value="${esc(c.title || '')}" draggable="false">
       <textarea class="card-text" placeholder="Notes…" draggable="false">${esc(c.text)}</textarea>
@@ -1901,8 +1925,9 @@ function pomoCalcRemaining() {
 }
 
 function pomoRender() {
-  const labels = { focus: 'Focus', short: 'Short Break', long: 'Long Break' };
-  document.getElementById('pomo-mode').textContent = labels[POMO.mode];
+  document.querySelectorAll('.pomo-mode-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === POMO.mode);
+  });
   const timeEl = document.getElementById('pomo-time');
   const display = pomoFmt(Math.ceil(pomoCalcRemaining()));
   timeEl.textContent = display;
@@ -2069,6 +2094,22 @@ function pomoLoadSettings() {
 document.getElementById('pomo-toggle').addEventListener('click', pomoToggle);
 document.getElementById('pomo-reset').addEventListener('click', pomoReset);
 document.getElementById('mob-pomo-btn').addEventListener('click', pomoToggle);
+
+document.querySelectorAll('.pomo-mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const mode = btn.dataset.mode;
+    if (POMO.mode === mode) return;
+    clearInterval(POMO.interval);
+    POMO.running   = false;
+    POMO.mode      = mode;
+    POMO.remaining = POMO.durations[mode];
+    POMO.currentTask   = null;
+    POMO.currentTaskId = null;
+    pomoSaveState();
+    pomoRender();
+    render();
+  });
+});
 
 document.getElementById('pomo-settings-btn').addEventListener('click', () => {
   document.getElementById('pomo-settings').classList.toggle('open');
