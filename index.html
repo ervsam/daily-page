@@ -1376,13 +1376,13 @@ const state = { ...DEFAULTS, deletedIds: [] };
 
 function absorb(incoming) {
   for (const key of Object.keys(state)) delete state[key];
-  const merged = { ...DEFAULTS, ...incoming };
+  const merged = { ...DEFAULTS };
+  for (const key of Object.keys(DEFAULTS)) {
+    if (incoming[key] !== undefined) merged[key] = incoming[key];
+  }
   // Migrate old dailyWhy string → per-day whyLog
-  if (merged.dailyWhy && !Object.keys(merged.whyLog || {}).length) {
-    merged.whyLog = { [TODAY]: merged.dailyWhy };
-    delete merged.dailyWhy;
-  } else if (merged.dailyWhy) {
-    delete merged.dailyWhy;
+  if (incoming.dailyWhy && !Object.keys(merged.whyLog || {}).length) {
+    merged.whyLog = { [TODAY]: incoming.dailyWhy };
   }
   Object.assign(state, merged);
 }
