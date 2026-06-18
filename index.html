@@ -1091,7 +1091,7 @@
       transition: opacity 0.12s;
       pointer-events: none;
     }
-    .card:hover .card-colors { opacity: 1; pointer-events: auto; }
+    .card-handle:hover .card-colors { opacity: 1; pointer-events: auto; }
     .card-color-dot {
       width: 10px;
       height: 10px;
@@ -1708,7 +1708,6 @@ function renderCards() {
       <div class="card-handle">
         <div class="card-colors" draggable="false">
           ${COLOR_NAMES.map(col => `<div class="card-color-dot${c.color === col ? ' active' : ''}" data-color="${col}" draggable="false" style="background:var(--card-${col})" title="${col}"></div>`).join('')}
-          ${c.color ? `<div class="card-color-dot" data-color="" draggable="false" style="background:var(--border)" title="Clear"></div>` : ''}
         </div>
         ${DRAG_SVG}
       </div>
@@ -1767,7 +1766,10 @@ function renderCards() {
       dot.addEventListener('click', e => {
         e.stopPropagation();
         const c = (state.cards || []).find(x => x.id === id);
-        if (c) { c.color = dot.dataset.color || null; save(); renderCards(); }
+        if (c) {
+          c.color = c.color === dot.dataset.color ? null : dot.dataset.color;
+          save(); renderCards();
+        }
       });
     });
     card.querySelector('.card-colors')?.addEventListener('mousedown', e => e.stopPropagation());
