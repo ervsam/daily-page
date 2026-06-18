@@ -177,6 +177,12 @@
       font-family: inherit;
     }
     .add-input::placeholder { color: var(--faint); }
+    .add-hint {
+      font-size: 10px;
+      color: var(--faint);
+      padding: 5px 0 0 48px;
+      letter-spacing: 0.03em;
+    }
 
     .sep {
       height: 1px;
@@ -212,10 +218,11 @@
       display: grid;
       grid-template-columns: 40px 1fr 40px;
       align-items: center;
-      margin-bottom: 56px;
+      margin-bottom: 16px;
     }
-    .date-nav .date-label { margin-bottom: 0; cursor: pointer; text-align: center; }
-    .date-nav .date-label:hover { color: var(--text); }
+    .date-nav .date-label { margin-bottom: 0; cursor: default; text-align: center; }
+    .date-nav .date-label:not(.is-today) { cursor: pointer; }
+    .date-nav .date-label:not(.is-today):hover { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
 
     .nav-btn {
       background: none;
@@ -248,10 +255,10 @@
     /* Pomodoro */
     .pomo {
       position: fixed;
-      right: 52px;
+      right: 24px;
       top: 48px;
       text-align: center;
-      width: 100px;
+      width: 160px;
     }
     @media (max-width: 960px) { .pomo { display: none; } }
 
@@ -264,13 +271,13 @@
     .pomo-mode-btn {
       background: none;
       border: none;
-      font-size: 9px;
+      font-size: 10px;
       font-weight: 600;
       letter-spacing: 0.07em;
       text-transform: uppercase;
       color: var(--faint);
       cursor: pointer;
-      padding: 3px 5px;
+      padding: 3px 8px;
       border-radius: 4px;
       transition: color 0.15s, background 0.15s;
       font-family: inherit;
@@ -876,6 +883,7 @@
       margin-bottom: 6px;
     }
     .card-title::placeholder { color: var(--faint); font-weight: 400; }
+    .card-title.empty { border-bottom-color: transparent; padding-bottom: 0; margin-bottom: 2px; }
     .card-placeholder { height: 150px; }
 
     /* Undo toast */
@@ -963,14 +971,13 @@
       display: flex;
       justify-content: center;
       gap: 7px;
-      margin-bottom: 44px;
-      margin-top: -36px;
+      margin-bottom: 32px;
     }
     .spark-dot {
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      border: 1.5px solid var(--border);
+      border: 1.5px solid var(--faint);
       cursor: pointer;
       transition: transform 0.12s;
       flex-shrink: 0;
@@ -987,7 +994,7 @@
       color: var(--muted);
       margin-top: 10px;
       line-height: 1.35;
-      max-width: 90px;
+      max-width: 148px;
       margin-left: auto;
       margin-right: auto;
       overflow: hidden;
@@ -1060,10 +1067,9 @@
     /* ── Habit week rate ─────────────────────────────────────────────── */
     .sidebar-week-rate {
       font-size: 10px;
-      color: var(--faint);
+      color: var(--muted);
       font-variant-numeric: tabular-nums;
       flex-shrink: 0;
-      margin-left: auto;
     }
 
     /* ── Card color labels ───────────────────────────────────────────── */
@@ -1184,6 +1190,7 @@
       <div class="add-icon">+</div>
       <input class="add-input" id="add-input" type="text" placeholder="Add a task…" autocomplete="off" />
     </div>
+    <p class="add-hint" id="add-hint">@tomorrow · [30] · #project</p>
   </div>
 
   <div class="sep"></div>
@@ -1468,7 +1475,9 @@ function esc(s) {
 function render() {
   const isPast = viewDate < TODAY;
 
-  document.getElementById('date-label').textContent = formatLabel(viewDate);
+  const dateLabelEl = document.getElementById('date-label');
+  dateLabelEl.textContent = formatLabel(viewDate);
+  dateLabelEl.classList.toggle('is-today', viewDate === TODAY);
   document.getElementById('btn-prev').disabled = viewDate <= MIN_DATE;
   document.getElementById('btn-next').disabled = viewDate >= TODAY;
   document.getElementById('past-badge').style.display = isPast ? 'block' : 'none';
@@ -1622,6 +1631,8 @@ function render() {
   });
 
   document.getElementById('add-row').style.display = isPast ? 'none' : 'flex';
+  const addHint = document.getElementById('add-hint');
+  if (addHint) addHint.style.display = isPast ? 'none' : '';
   renderSparkline();
   updateTabTitle();
 }
@@ -1642,12 +1653,12 @@ function renderHabitsInto(el) {
       <div class="sidebar-habit-row" data-habit="${esc(h)}">
         <div class="check-square${todayDone ? ' done' : ''}" data-habit="${esc(h)}">${CHECK_SVG}</div>
         <span class="sidebar-habit-name" title="${esc(h)}">${esc(h)}</span>
+        <span class="sidebar-week-rate">${calcWeekRate(h)}/7</span>
         <button class="btn-del" title="Remove habit" tabindex="-1">×</button>
       </div>
       <div class="sidebar-habit-meta">
         <div class="sidebar-habit-dots">${dots}</div>
         <span class="sidebar-streak${s > 0 ? ' active' : ''}">${s > 0 ? s + 'd' : ''}</span>
-        <span class="sidebar-week-rate">${calcWeekRate(h)}/7w</span>
       </div>
     `;
   }).join('') + `<input class="sidebar-add-habit" type="text" placeholder="Add a habit…" autocomplete="off" />`;
@@ -1712,7 +1723,7 @@ function renderCards() {
         ${DRAG_SVG}
       </div>
       <button class="card-del" title="Delete card" tabindex="-1">×</button>
-      <input class="card-title" placeholder="Title…" value="${esc(c.title || '')}" draggable="false">
+      <input class="card-title${c.title ? '' : ' empty'}" placeholder="Title…" value="${esc(c.title || '')}" draggable="false">
       <textarea class="card-text" placeholder="Notes…" draggable="false">${esc(c.text)}</textarea>
     </div>
   `).join('');
@@ -1752,7 +1763,12 @@ function renderCards() {
     titleEl.addEventListener('dragstart', e => { e.stopPropagation(); e.preventDefault(); });
     titleEl.addEventListener('input', () => {
       const c = (state.cards || []).find(x => x.id === id);
-      if (c) { c.title = titleEl.value; localStorage.setItem(STORE_KEY, JSON.stringify(state)); scheduleSave(); }
+      if (c) {
+        c.title = titleEl.value;
+        titleEl.classList.toggle('empty', !titleEl.value.trim());
+        localStorage.setItem(STORE_KEY, JSON.stringify(state));
+        scheduleSave();
+      }
     });
 
     const ta = card.querySelector('.card-text');
