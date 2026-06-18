@@ -1226,7 +1226,6 @@
 </div>
 
 <script>
-const STORE_KEY = 'daily-v1';
 const BIN_ID    = '69f4cb4936566621a8139b36';
 const API_KEY   = '$2a$10$rC9h5aCfZpw8uTK74VBwWO52r5ELWEXauUOsHkltH/ICJs5gbxWeO';
 const BIN_URL   = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
@@ -1344,7 +1343,6 @@ function pruneState() {
 
 function save() {
   pruneState();
-  localStorage.setItem(STORE_KEY, JSON.stringify(state));
   scheduleSave();
 }
 
@@ -1765,7 +1763,6 @@ function renderCards() {
       if (c) {
         c.title = titleEl.value;
         titleEl.classList.toggle('empty', !titleEl.value.trim());
-        localStorage.setItem(STORE_KEY, JSON.stringify(state));
         scheduleSave();
       }
     });
@@ -1774,7 +1771,7 @@ function renderCards() {
     ta.addEventListener('dragstart', e => { e.stopPropagation(); e.preventDefault(); });
     ta.addEventListener('input', () => {
       const c = (state.cards || []).find(x => x.id === id);
-      if (c) { c.text = ta.value; localStorage.setItem(STORE_KEY, JSON.stringify(state)); scheduleSave(); }
+      if (c) { c.text = ta.value; scheduleSave(); }
     });
 
     card.querySelectorAll('.card-color-dot').forEach(dot => {
@@ -1909,24 +1906,16 @@ const POMO = {
 // ── Init ──────────────────────────────────────────────────────────
 
 (async () => {
-  try {
-    const cached = localStorage.getItem(STORE_KEY);
-    if (cached) absorb(JSON.parse(cached));
-  } catch (_) {}
   render(); renderWhy(); renderProjects(); renderProjectsPreview(); renderHabitsSidebar(); renderCards();
-
   try {
     const remote = await binFetch();
     if (Array.isArray(remote.habits) || remote.todos) absorb(remote);
     else await binSave(state);
     carryOver();
-    localStorage.setItem(STORE_KEY, JSON.stringify(state));
     render(); renderWhy(); renderProjects(); renderProjectsPreview(); renderAllHabits(); renderCards();
     syncStatus('synced');
   } catch (e) {
-    console.warn('JSONBin fetch failed, using local cache:', e);
-    carryOver();
-    render(); renderWhy(); renderProjects(); renderProjectsPreview(); renderAllHabits(); renderCards();
+    console.warn('JSONBin fetch failed:', e);
     syncStatus('error');
   }
 })();
