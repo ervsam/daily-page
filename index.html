@@ -1210,11 +1210,11 @@
     <button class="grocery-tab-btn" data-store="tt">T&amp;T</button>
     <button class="grocery-tab-btn" data-store="costco">Costco</button>
   </div>
-  <div class="projects-list" id="grocery-list"></div>
   <div class="projects-add">
     <div class="add-icon">+</div>
     <input type="text" id="grocery-input" placeholder="Add an item…" autocomplete="off" />
   </div>
+  <div class="projects-list" id="grocery-list"></div>
 </div>
 
 <div class="pomo" id="pomo">
@@ -2017,6 +2017,8 @@ const POMO = {
   currentTaskId: null
 };
 
+let groceryStore = 'walmart'; // declared before init IIFE — renderGroceries() runs during cache-first render
+
 // ── Init ──────────────────────────────────────────────────────────
 
 (async () => {
@@ -2347,8 +2349,6 @@ document.getElementById('projects-input').addEventListener('keydown', e => {
 });
 
 // ── Groceries ─────────────────────────────────────────────────────
-
-let groceryStore = 'walmart';
 
 function renderGroceries() {
   document.querySelectorAll('.grocery-tab-btn').forEach(btn => {
