@@ -541,6 +541,43 @@
     .project-sidebar-item:hover { opacity: 1; }
     .project-sidebar-item.done { text-decoration: line-through; opacity: 0.35; }
 
+    /* Grocery panel */
+    #groceries-trigger { margin-top: 22px; }
+
+    .grocery-tabs {
+      display: flex;
+      gap: 4px;
+      padding: 14px 24px 4px;
+    }
+    .grocery-tab-btn {
+      flex: 1;
+      background: none;
+      border: none;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 7px 4px;
+      border-radius: 6px;
+      transition: color 0.15s, background 0.15s;
+      font-family: inherit;
+    }
+    .grocery-tab-btn:hover { color: var(--text); }
+    .grocery-tab-btn.active { color: var(--text); background: var(--border); }
+
+    .grocery-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+    .grocery-item:first-child { border-top: 1px solid var(--border); }
+    .grocery-item-text { flex: 1; font-size: 14px; line-height: 1.5; }
+    .grocery-item .btn-del { font-size: 18px; }
+    .grocery-item:hover .btn-del { opacity: 1; }
+
     /* Sidebar habits */
     .sidebar-section-label {
       font-size: 10px;
@@ -1144,6 +1181,7 @@
 <div class="projects-sidebar">
   <button class="projects-trigger" id="projects-trigger">Projects</button>
   <div id="projects-sidebar-list"></div>
+  <button class="projects-trigger" id="groceries-trigger">Groceries</button>
   <div class="sidebar-section-label">Habits</div>
   <div id="sidebar-habits"></div>
 </div>
@@ -1158,6 +1196,24 @@
   <div class="projects-add">
     <div class="add-icon">+</div>
     <input type="text" id="projects-input" placeholder="Add a project…" autocomplete="off" />
+  </div>
+</div>
+
+<div class="projects-backdrop" id="groceries-backdrop"></div>
+<div class="projects-panel" id="groceries-panel">
+  <div class="projects-header">
+    <span class="projects-title">Groceries</span>
+    <button class="projects-close" id="groceries-close">×</button>
+  </div>
+  <div class="grocery-tabs" id="grocery-tabs">
+    <button class="grocery-tab-btn active" data-store="walmart">Walmart</button>
+    <button class="grocery-tab-btn" data-store="tt">T&amp;T</button>
+    <button class="grocery-tab-btn" data-store="costco">Costco</button>
+  </div>
+  <div class="projects-list" id="grocery-list"></div>
+  <div class="projects-add">
+    <div class="add-icon">+</div>
+    <input type="text" id="grocery-input" placeholder="Add an item…" autocomplete="off" />
   </div>
 </div>
 
@@ -1229,6 +1285,7 @@
 <div class="mobile-bar">
   <button class="mob-tab-btn" id="mob-proj-btn">Projects</button>
   <button class="mob-tab-btn" id="mob-habits-btn">Habits</button>
+  <button class="mob-tab-btn" id="mob-groceries-btn">Groceries</button>
   <div class="mob-pomo-wrap">
     <span class="mob-pomo-time" id="mob-pomo-time">25:00</span>
     <button class="mob-pomo-btn" id="mob-pomo-btn">▶</button>
@@ -1371,7 +1428,7 @@ function showUndo(label, restoreFn, commitFn) {
 
 // ── State ─────────────────────────────────────────────────────────
 
-const DEFAULTS = { todos: {}, habitLog: {}, habits: ['Exercise', 'Read', 'Meditate'], deletedIds: [], projects: [], cards: [], whyLog: {}, pomoLog: {} };
+const DEFAULTS = { todos: {}, habitLog: {}, habits: ['Exercise', 'Read', 'Meditate'], deletedIds: [], projects: [], cards: [], whyLog: {}, pomoLog: {}, groceries: { walmart: [], tt: [], costco: [] } };
 const state = { ...DEFAULTS, deletedIds: [] };
 
 function absorb(incoming) {
@@ -1967,7 +2024,7 @@ const POMO = {
   const cached = localStorage.getItem(CACHE_KEY);
   if (cached) {
     try { absorb(JSON.parse(cached)); } catch {}
-    render(); renderWhy(); renderProjects(); renderProjectsPreview(); renderHabitsSidebar(); renderCards();
+    render(); renderWhy(); renderProjects(); renderGroceries(); renderProjectsPreview(); renderHabitsSidebar(); renderCards();
     syncStatus('synced');
   } else {
     // No cache — show skeleton until remote loads
@@ -1993,7 +2050,7 @@ const POMO = {
       const active = document.activeElement;
       const isTyping = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
       const doRender = () => {
-        render(); renderWhy(); renderProjects(); renderProjectsPreview(); renderAllHabits(); renderCards();
+        render(); renderWhy(); renderProjects(); renderGroceries(); renderProjectsPreview(); renderAllHabits(); renderCards();
       };
       if (isTyping) {
         active.addEventListener('blur', doRender, { once: true });
@@ -2001,7 +2058,7 @@ const POMO = {
         doRender();
       }
     } else if (!cached) {
-      render(); renderWhy(); renderProjects(); renderProjectsPreview(); renderAllHabits(); renderCards();
+      render(); renderWhy(); renderProjects(); renderGroceries(); renderProjectsPreview(); renderAllHabits(); renderCards();
     }
   } catch (e) {
     console.warn('JSONBin fetch failed:', e);
@@ -2266,6 +2323,7 @@ function renderProjects() {
 }
 
 function openProjects() {
+  closeGroceries();
   document.getElementById('projects-panel').classList.add('open');
   document.getElementById('projects-backdrop').classList.add('open');
   document.getElementById('projects-input').focus();
@@ -2285,6 +2343,66 @@ document.getElementById('projects-input').addEventListener('keydown', e => {
   if (!state.projects) state.projects = [];
   state.projects.push({ id: 'p' + Date.now(), text: val, done: false });
   save(); renderProjects(); renderProjectsPreview();
+  e.target.value = '';
+});
+
+// ── Groceries ─────────────────────────────────────────────────────
+
+let groceryStore = 'walmart';
+
+function renderGroceries() {
+  document.querySelectorAll('.grocery-tab-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.store === groceryStore);
+  });
+
+  const list  = document.getElementById('grocery-list');
+  const items = (state.groceries && state.groceries[groceryStore]) || [];
+  list.innerHTML = items.length
+    ? items.map(it => `
+      <div class="grocery-item" data-id="${esc(it.id)}">
+        <span class="grocery-item-text">${esc(it.text)}</span>
+        <button class="btn-del" title="Remove" tabindex="-1">×</button>
+      </div>`).join('')
+    : `<p style="padding:24px;font-size:13px;color:var(--faint);text-align:center">No items yet.<br>Add one below.</p>`;
+
+  list.querySelectorAll('.grocery-item').forEach(el => {
+    el.querySelector('.btn-del').addEventListener('click', () => {
+      state.groceries[groceryStore] = state.groceries[groceryStore].filter(x => x.id !== el.dataset.id);
+      save(); renderGroceries();
+    });
+  });
+}
+
+function openGroceries() {
+  closeProjects();
+  renderGroceries();
+  document.getElementById('groceries-panel').classList.add('open');
+  document.getElementById('groceries-backdrop').classList.add('open');
+  document.getElementById('grocery-input').focus();
+}
+function closeGroceries() {
+  document.getElementById('groceries-panel').classList.remove('open');
+  document.getElementById('groceries-backdrop').classList.remove('open');
+}
+
+document.getElementById('groceries-trigger').addEventListener('click', openGroceries);
+document.getElementById('groceries-close').addEventListener('click', closeGroceries);
+document.getElementById('groceries-backdrop').addEventListener('click', closeGroceries);
+document.getElementById('mob-groceries-btn').addEventListener('click', openGroceries);
+document.querySelectorAll('.grocery-tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    groceryStore = btn.dataset.store;
+    renderGroceries();
+  });
+});
+document.getElementById('grocery-input').addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  const val = e.target.value.trim();
+  if (!val) return;
+  if (!state.groceries) state.groceries = { walmart: [], tt: [], costco: [] };
+  if (!state.groceries[groceryStore]) state.groceries[groceryStore] = [];
+  state.groceries[groceryStore].push({ id: 'g' + Date.now(), text: val });
+  save(); renderGroceries();
   e.target.value = '';
 });
 
@@ -2332,7 +2450,7 @@ document.getElementById('sheet-backdrop').addEventListener('click', closeMobHabi
 
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
-    closeProjects(); closeMobHabits();
+    closeProjects(); closeMobHabits(); closeGroceries();
     document.body.classList.remove('focus-mode');
   }
   if (e.key === 'n' && !e.target.matches('input,textarea,[contenteditable]')) {
