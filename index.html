@@ -565,6 +565,38 @@
     }
     .grocery-tab-btn:hover { color: var(--text); }
     .grocery-tab-btn.active { color: var(--text); background: var(--border); }
+    .grocery-tab-btn[data-store="walmart"] { color: var(--card-blue); }
+    .grocery-tab-btn[data-store="tt"]      { color: var(--card-green); }
+    .grocery-tab-btn[data-store="costco"]  { color: var(--card-red); }
+    .grocery-tab-btn[data-store="walmart"].active { color: var(--card-blue); background: rgba(74, 127, 193, 0.16); }
+    .grocery-tab-btn[data-store="tt"].active      { color: var(--card-green); background: rgba(90, 138, 106, 0.16); }
+    .grocery-tab-btn[data-store="costco"].active  { color: var(--card-red); background: rgba(224, 82, 82, 0.16); }
+
+    .grocery-add { display: flex; align-items: center; gap: 10px; padding: 13px 24px; border-top: 1px solid var(--border); flex-shrink: 0; }
+    .grocery-add input {
+      flex: 1;
+      border: none;
+      background: none;
+      font-size: 14px;
+      color: var(--text);
+      outline: none;
+      font-family: inherit;
+    }
+    .grocery-add input::placeholder { color: var(--faint); }
+    .grocery-add-btn {
+      background: none;
+      border: 1.5px solid var(--border);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+    .grocery-add-btn:hover { border-color: var(--accent); color: var(--accent); }
 
     .grocery-item {
       display: flex;
@@ -574,7 +606,18 @@
       border-bottom: 1px solid var(--border);
     }
     .grocery-item:first-child { border-top: 1px solid var(--border); }
-    .grocery-item-text { flex: 1; font-size: 14px; line-height: 1.5; }
+    .grocery-item-text {
+      flex: 1;
+      border: none;
+      background: none;
+      font-size: 14px;
+      line-height: 1.5;
+      font-family: inherit;
+      color: var(--text);
+      outline: none;
+    }
+    .grocery-item-text::placeholder { color: var(--faint); }
+    .grocery-item.done .grocery-item-text { color: var(--done-text); text-decoration: line-through; }
     .grocery-item .btn-del { font-size: 18px; }
     .grocery-item:hover .btn-del { opacity: 1; }
 
@@ -1210,9 +1253,9 @@
     <button class="grocery-tab-btn" data-store="tt">T&amp;T</button>
     <button class="grocery-tab-btn" data-store="costco">Costco</button>
   </div>
-  <div class="projects-add">
-    <div class="add-icon">+</div>
+  <div class="grocery-add">
     <input type="text" id="grocery-input" placeholder="Add an item…" autocomplete="off" />
+    <button class="grocery-add-btn" id="grocery-add-btn">Add</button>
   </div>
   <div class="projects-list" id="grocery-list"></div>
 </div>
@@ -1564,6 +1607,24 @@ function focusPomo(taskId, taskText) {
   render();
 }
 
+function unfocusPomo() {
+  POMO.currentTaskId = null;
+  POMO.currentTask   = null;
+  if (POMO.running) {
+    POMO.remaining = Math.ceil(pomoCalcRemaining());
+    clearInterval(POMO.interval);
+    POMO.running = false;
+  }
+  pomoSaveState();
+  pomoRender();
+  render();
+}
+
+function toggleFocusPomo(taskId, taskText) {
+  if (POMO.currentTaskId === taskId) unfocusPomo();
+  else focusPomo(taskId, taskText);
+}
+
 // ── Rendering ─────────────────────────────────────────────────────
 
 const CHECK_SVG = `<svg class="check-icon" width="10" height="8" viewBox="0 0 10 8" fill="none">
@@ -1578,6 +1639,7 @@ const DRAG_SVG = `<svg width="8" height="13" viewBox="0 0 8 13" fill="currentCol
 
 const POMO_PLAY  = `<svg width="9" height="11" viewBox="0 0 9 11" fill="currentColor" aria-hidden="true"><path d="M1 0.5 L8.5 5.5 L1 10.5 Z"/></svg>`;
 const POMO_PAUSE = `<svg width="9" height="11" viewBox="0 0 9 11" fill="currentColor" aria-hidden="true"><rect x="0" y="0" width="3.5" height="11" rx="1"/><rect x="5.5" y="0" width="3.5" height="11" rx="1"/></svg>`;
+const POMO_STOP  = `<svg width="9" height="11" viewBox="0 0 9 11" fill="currentColor" aria-hidden="true"><rect x="0" y="1" width="9" height="9" rx="1.5"/></svg>`;
 
 function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -1629,7 +1691,7 @@ function render() {
       <span class="todo-text">${esc(t.text)}</span>
       ${projName ? `<span class="todo-proj-tag">${esc(projName.slice(0, 12))}</span>` : ''}
       ${t.pomoCount ? `<span class="todo-pomo-count">${t.pomoCount}</span>` : ''}
-      ${!isPast && !t.done ? `<button class="todo-pomo-btn${POMO.currentTaskId === t.id ? ' active' : ''}" title="Start focus session" tabindex="-1">${POMO_PLAY}</button>` : ''}
+      ${!isPast && !t.done ? `<button class="todo-pomo-btn${POMO.currentTaskId === t.id ? ' active' : ''}" title="${POMO.currentTaskId === t.id ? 'Cancel focus session' : 'Start focus session'}" tabindex="-1">${POMO.currentTaskId === t.id ? POMO_STOP : POMO_PLAY}</button>` : ''}
       ${!isPast && !t.done ? `<button class="btn-tomorrow" title="Move to tomorrow" tabindex="-1">→</button>` : ''}
       ${!isPast ? `<button class="btn-del" title="Remove" tabindex="-1">×</button>` : ''}
     </li>
@@ -1716,7 +1778,7 @@ function render() {
 
     // Focus pomo on this task
     el.querySelector('.todo-pomo-btn')?.addEventListener('click', () => {
-      if (t) focusPomo(id, t.text);
+      if (t) toggleFocusPomo(id, t.text);
     });
 
     // Drag to reorder — only initiates from the handle
@@ -2185,7 +2247,8 @@ function pomoSaveState() {
     running: POMO.running,
     sessions: POMO.sessions,
     startedAt: POMO.startedAt,
-    startRemaining: POMO.startRemaining
+    startRemaining: POMO.startRemaining,
+    savedDate: TODAY
   }));
 }
 
@@ -2193,6 +2256,7 @@ function pomoRestoreState() {
   try {
     const s = JSON.parse(localStorage.getItem('pomo-state'));
     if (!s || !s.mode) return;
+    if (s.savedDate && s.savedDate !== TODAY) return; // new day — counter resets, don't carry over a stale running session
     POMO.mode     = s.mode;
     POMO.sessions = s.sessions || 0;
     if (s.running && s.startedAt) {
@@ -2282,9 +2346,10 @@ pomoRender();
 
 function renderProjectsPreview() {
   const el = document.getElementById('projects-sidebar-list');
-  el.innerHTML = (state.projects || []).map(p =>
-    `<div class="project-sidebar-item${p.done ? ' done' : ''}">${esc(p.text)}</div>`
-  ).join('');
+  const projects = state.projects || [];
+  el.innerHTML = projects.length
+    ? projects.map(p => `<div class="project-sidebar-item${p.done ? ' done' : ''}">${esc(p.text)}</div>`).join('')
+    : `<p style="font-size:11px;color:var(--faint);padding:2px 0 0;">Nothing here</p>`;
   el.querySelectorAll('.project-sidebar-item').forEach(item => item.addEventListener('click', openProjects));
 }
 
@@ -2359,18 +2424,44 @@ function renderGroceries() {
   const items = (state.groceries && state.groceries[groceryStore]) || [];
   list.innerHTML = items.length
     ? items.map(it => `
-      <div class="grocery-item" data-id="${esc(it.id)}">
-        <span class="grocery-item-text">${esc(it.text)}</span>
+      <div class="grocery-item${it.done ? ' done' : ''}" data-id="${esc(it.id)}">
+        <div class="check-square${it.done ? ' done' : ''}" title="Mark picked up">${CHECK_SVG}</div>
+        <input class="grocery-item-text" value="${esc(it.text)}" placeholder="Item…" autocomplete="off">
         <button class="btn-del" title="Remove" tabindex="-1">×</button>
       </div>`).join('')
-    : `<p style="padding:24px;font-size:13px;color:var(--faint);text-align:center">No items yet.<br>Add one below.</p>`;
+    : `<p style="padding:24px;font-size:13px;color:var(--faint);text-align:center">Nothing here.<br>Add one below.</p>`;
 
   list.querySelectorAll('.grocery-item').forEach(el => {
+    const id = el.dataset.id;
+
+    el.querySelector('.check-square').addEventListener('click', () => {
+      const it = (state.groceries[groceryStore] || []).find(x => x.id === id);
+      if (it) { it.done = !it.done; save(); renderGroceries(); }
+    });
+
+    const textEl = el.querySelector('.grocery-item-text');
+    textEl.addEventListener('input', () => {
+      const it = (state.groceries[groceryStore] || []).find(x => x.id === id);
+      if (it) { it.text = textEl.value; scheduleSave(); }
+    });
+
     el.querySelector('.btn-del').addEventListener('click', () => {
-      state.groceries[groceryStore] = state.groceries[groceryStore].filter(x => x.id !== el.dataset.id);
+      state.groceries[groceryStore] = state.groceries[groceryStore].filter(x => x.id !== id);
       save(); renderGroceries();
     });
   });
+}
+
+function addGroceryItem() {
+  const input = document.getElementById('grocery-input');
+  const val = input.value.trim();
+  if (!val) return;
+  if (!state.groceries) state.groceries = { walmart: [], tt: [], costco: [] };
+  if (!state.groceries[groceryStore]) state.groceries[groceryStore] = [];
+  state.groceries[groceryStore].push({ id: 'g' + Date.now(), text: val, done: false });
+  save(); renderGroceries();
+  input.value = '';
+  input.focus();
 }
 
 function openGroceries() {
@@ -2396,15 +2487,9 @@ document.querySelectorAll('.grocery-tab-btn').forEach(btn => {
   });
 });
 document.getElementById('grocery-input').addEventListener('keydown', e => {
-  if (e.key !== 'Enter') return;
-  const val = e.target.value.trim();
-  if (!val) return;
-  if (!state.groceries) state.groceries = { walmart: [], tt: [], costco: [] };
-  if (!state.groceries[groceryStore]) state.groceries[groceryStore] = [];
-  state.groceries[groceryStore].push({ id: 'g' + Date.now(), text: val });
-  save(); renderGroceries();
-  e.target.value = '';
+  if (e.key === 'Enter') addGroceryItem();
 });
+document.getElementById('grocery-add-btn').addEventListener('click', addGroceryItem);
 
 (function() {
   const el = document.getElementById('daily-why');
