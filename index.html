@@ -1742,16 +1742,23 @@ function render() {
       });
     });
 
-    // Delete with undo
+    // Delete with undo — tombstone immediately so carryOver excludes it even if the
+    // tab closes before the undo toast would otherwise have committed it
     el.querySelector('.btn-del')?.addEventListener('click', () => {
       const todos = state.todos[viewDate] || [];
       const idx   = todos.findIndex(x => x.id === id);
       const item  = todos[idx];
       state.todos[viewDate] = todos.filter(x => x.id !== id);
+      if (!state.deletedIds.includes(id)) state.deletedIds.push(id);
       save(); render();
       showUndo('Task deleted',
-        () => { if (!state.todos[viewDate]) state.todos[viewDate] = []; state.todos[viewDate].splice(idx, 0, item); save(); render(); },
-        () => { if (!state.deletedIds.includes(id)) state.deletedIds.push(id); save(); }
+        () => {
+          state.deletedIds = state.deletedIds.filter(x => x !== id);
+          if (!state.todos[viewDate]) state.todos[viewDate] = [];
+          state.todos[viewDate].splice(idx, 0, item);
+          save(); render();
+        },
+        () => {}
       );
     });
 
