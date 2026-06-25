@@ -78,7 +78,7 @@
       transition: width 0.4s ease;
     }
 
-    .todo-list { list-style: none; }
+    .todo-list { list-style: none; margin: 0; padding: 0; }
 
     .todo-item {
       display: flex;
@@ -154,6 +154,7 @@
       padding: 13px 0;
       border-bottom: 1px solid var(--border);
     }
+    .add-row-spacer { width: 12px; flex-shrink: 0; }
     .add-icon {
       width: 20px;
       height: 20px;
@@ -180,7 +181,7 @@
     .add-hint {
       font-size: 10px;
       color: var(--faint);
-      padding: 5px 0 0 48px;
+      padding: 5px 0 0 60px;
       letter-spacing: 0.03em;
     }
 
@@ -1237,7 +1238,7 @@
   </div>
   <div class="projects-list" id="projects-list"></div>
   <div class="projects-add">
-    <div class="add-icon">+</div>
+    <div class="add-icon"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 0V10M0 5H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div>
     <input type="text" id="projects-input" placeholder="Add a project…" autocomplete="off" />
   </div>
 </div>
@@ -1310,7 +1311,8 @@
     <div class="all-done-msg" id="all-done-msg"></div>
     <ul class="todo-list" id="todo-list"></ul>
     <div class="add-row" id="add-row">
-      <div class="add-icon">+</div>
+      <div class="add-row-spacer"></div>
+      <div class="add-icon"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 0V10M0 5H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div>
       <input class="add-input" id="add-input" type="text" placeholder="Add a task…" autocomplete="off" />
     </div>
     <p class="add-hint" id="add-hint">@tomorrow · [30] · #project</p>
