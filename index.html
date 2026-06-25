@@ -542,6 +542,20 @@
     .project-sidebar-item:hover { opacity: 1; }
     .project-sidebar-item.done { text-decoration: line-through; opacity: 0.35; }
 
+    .grocery-sidebar-item {
+      font-size: 11px;
+      color: var(--muted);
+      opacity: 0.78;
+      padding: 5px 0;
+      cursor: pointer;
+      line-height: 1.45;
+      transition: opacity 0.15s;
+      border-bottom: 1px solid var(--border);
+    }
+    .grocery-sidebar-item:first-child { border-top: 1px solid var(--border); }
+    .grocery-sidebar-item:hover { opacity: 1; }
+    .grocery-sidebar-item.done { text-decoration: line-through; opacity: 0.35; }
+
     /* Grocery panel */
     #groceries-trigger { margin-top: 22px; }
 
@@ -1226,6 +1240,7 @@
   <button class="projects-trigger" id="projects-trigger">Projects</button>
   <div id="projects-sidebar-list"></div>
   <button class="projects-trigger" id="groceries-trigger">Groceries</button>
+  <div id="groceries-sidebar-list"></div>
   <div class="sidebar-section-label">Habits</div>
   <div id="sidebar-habits"></div>
 </div>
@@ -2097,7 +2112,7 @@ let groceryStore = 'walmart'; // declared before init IIFE — renderGroceries()
   const cached = localStorage.getItem(CACHE_KEY);
   if (cached) {
     try { absorb(JSON.parse(cached)); } catch {}
-    render(); renderWhy(); renderProjects(); renderGroceries(); renderProjectsPreview(); renderHabitsSidebar(); renderCards();
+    render(); renderWhy(); renderProjects(); renderGroceries(); renderGroceriesPreview(); renderProjectsPreview(); renderHabitsSidebar(); renderCards();
     syncStatus('synced');
   } else {
     // No cache — show skeleton until remote loads
@@ -2123,7 +2138,7 @@ let groceryStore = 'walmart'; // declared before init IIFE — renderGroceries()
       const active = document.activeElement;
       const isTyping = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
       const doRender = () => {
-        render(); renderWhy(); renderProjects(); renderGroceries(); renderProjectsPreview(); renderAllHabits(); renderCards();
+        render(); renderWhy(); renderProjects(); renderGroceries(); renderGroceriesPreview(); renderProjectsPreview(); renderAllHabits(); renderCards();
       };
       if (isTyping) {
         active.addEventListener('blur', doRender, { once: true });
@@ -2131,7 +2146,7 @@ let groceryStore = 'walmart'; // declared before init IIFE — renderGroceries()
         doRender();
       }
     } else if (!cached) {
-      render(); renderWhy(); renderProjects(); renderGroceries(); renderProjectsPreview(); renderAllHabits(); renderCards();
+      render(); renderWhy(); renderProjects(); renderGroceries(); renderGroceriesPreview(); renderProjectsPreview(); renderAllHabits(); renderCards();
     }
   } catch (e) {
     console.warn('JSONBin fetch failed:', e);
@@ -2424,6 +2439,16 @@ document.getElementById('projects-input').addEventListener('keydown', e => {
 
 // ── Groceries ─────────────────────────────────────────────────────
 
+function renderGroceriesPreview() {
+  const el = document.getElementById('groceries-sidebar-list');
+  const g = state.groceries || {};
+  const items = [...(g.walmart || []), ...(g.tt || []), ...(g.costco || [])];
+  el.innerHTML = items.length
+    ? items.map(it => `<div class="grocery-sidebar-item${it.done ? ' done' : ''}">${esc(it.text)}</div>`).join('')
+    : `<p style="font-size:11px;color:var(--faint);padding:2px 0 0;">Nothing here</p>`;
+  el.querySelectorAll('.grocery-sidebar-item').forEach(item => item.addEventListener('click', openGroceries));
+}
+
 function renderGroceries() {
   document.querySelectorAll('.grocery-tab-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.store === groceryStore);
@@ -2445,7 +2470,7 @@ function renderGroceries() {
 
     el.querySelector('.check-square').addEventListener('click', () => {
       const it = (state.groceries[groceryStore] || []).find(x => x.id === id);
-      if (it) { it.done = !it.done; save(); renderGroceries(); }
+      if (it) { it.done = !it.done; save(); renderGroceries(); renderGroceriesPreview(); }
     });
 
     const textEl = el.querySelector('.grocery-item-text');
@@ -2456,7 +2481,7 @@ function renderGroceries() {
 
     el.querySelector('.btn-del').addEventListener('click', () => {
       state.groceries[groceryStore] = state.groceries[groceryStore].filter(x => x.id !== id);
-      save(); renderGroceries();
+      save(); renderGroceries(); renderGroceriesPreview();
     });
   });
 }
@@ -2468,7 +2493,7 @@ function addGroceryItem() {
   if (!state.groceries) state.groceries = { walmart: [], tt: [], costco: [] };
   if (!state.groceries[groceryStore]) state.groceries[groceryStore] = [];
   state.groceries[groceryStore].push({ id: 'g' + Date.now(), text: val, done: false });
-  save(); renderGroceries();
+  save(); renderGroceries(); renderGroceriesPreview();
   input.value = '';
   input.focus();
 }
