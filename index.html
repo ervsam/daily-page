@@ -1526,13 +1526,23 @@ function carryOver() {
   if (!state.todos[TODAY]) state.todos[TODAY] = [];
   const todayIds = new Set(state.todos[TODAY].map(t => t.id));
   const deleted  = new Set(state.deletedIds || []);
-  let carried = false;
 
+  // An id counts as done if ANY occurrence in the scanned window is done —
+  // a stale undone duplicate on an older day shouldn't resurrect a task
+  // that was actually finished on a different day
+  const doneIds = new Set();
+  for (let i = 1; i <= 30; i++) {
+    const past = state.todos[dateStr(i)];
+    if (!past) continue;
+    for (const t of past) if (t.done) doneIds.add(t.id);
+  }
+
+  let carried = false;
   for (let i = 1; i <= 30; i++) {
     const past = state.todos[dateStr(i)];
     if (!past) continue;
     for (const t of past) {
-      if (!t.done && !todayIds.has(t.id) && !deleted.has(t.id)) {
+      if (!t.done && !doneIds.has(t.id) && !todayIds.has(t.id) && !deleted.has(t.id)) {
         state.todos[TODAY].push({ ...t, done: false });
         todayIds.add(t.id);
         carried = true;
@@ -1722,6 +1732,14 @@ function render() {
     el.querySelector('.check-circle').addEventListener('click', () => {
       if (!t) return;
       t.done = !t.done;
+      // Carryover can leave the same id sitting undone on an earlier day —
+      // keep every copy in sync so it can't be carried forward again later
+      for (const date of Object.keys(state.todos)) {
+        if (date === viewDate) continue;
+        for (const other of state.todos[date]) {
+          if (other.id === id) other.done = t.done;
+        }
+      }
       save();
       if (t.done) {
         el.classList.add('done');
