@@ -953,6 +953,14 @@
     }
     .todo-item:hover .todo-drag-handle { opacity: 1; }
     .todo-drag-handle:active { cursor: grabbing; }
+    /* pointer-events:none on the lifted item (below) is inherited by this child —
+       re-enable it here so the handle keeps receiving the real pointermove/pointerup
+       that drive the drag; elementFromPoint hit-testing still ignores the rest of the
+       card, and a hit on the handle itself just resolves back to itemEl, which the
+       reorder logic already treats as a no-op */
+    .todo-item.dragging .todo-drag-handle,
+    .todo-item.settling .todo-drag-handle,
+    .todo-item.completing .todo-drag-handle { pointer-events: auto; }
 
     .todo-item.dragging,
     .todo-item.settling,
