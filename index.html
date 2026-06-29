@@ -710,7 +710,19 @@
       transition: box-shadow 0.15s;
     }
     .card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-    .card.dragging { opacity: 0.4; }
+
+    .card.dragging,
+    .card.settling,
+    .card.completing {
+      position: fixed;
+      z-index: 1000;
+      background: var(--surface);
+      box-shadow: 0 18px 36px rgba(0,0,0,0.22), 0 6px 12px rgba(0,0,0,0.14);
+      pointer-events: none;
+    }
+    .card.dragging   { cursor: grabbing; }
+    .card.settling   { transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease; }
+    .card.completing { transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.32s ease; }
 
     .card-handle {
       height: 20px;
@@ -724,6 +736,7 @@
       transition: color 0.15s;
       margin-bottom: 2px;
       position: relative;
+      touch-action: none;
     }
     .card:hover .card-handle { color: var(--muted); }
     .card-handle:active { cursor: grabbing; }
@@ -953,14 +966,6 @@
     }
     .todo-item:hover .todo-drag-handle { opacity: 1; }
     .todo-drag-handle:active { cursor: grabbing; }
-    /* pointer-events:none on the lifted item (below) is inherited by this child —
-       re-enable it here so the handle keeps receiving the real pointermove/pointerup
-       that drive the drag; elementFromPoint hit-testing still ignores the rest of the
-       card, and a hit on the handle itself just resolves back to itemEl, which the
-       reorder logic already treats as a no-op */
-    .todo-item.dragging .todo-drag-handle,
-    .todo-item.settling .todo-drag-handle,
-    .todo-item.completing .todo-drag-handle { pointer-events: auto; }
 
     .todo-item.dragging,
     .todo-item.settling,
@@ -1012,6 +1017,9 @@
       color: var(--bg);
       transform: translateX(-50%) translateY(0) scale(1.1);
     }
+    .todo-complete-bin .bin-icon { display: flex; align-items: center; }
+    .todo-complete-bin.remove-mode { border-color: var(--card-red); color: var(--card-red); }
+    .todo-complete-bin.remove-mode.hover { background: var(--card-red); border-color: var(--card-red); color: var(--bg); }
     @media (max-width: 960px) { .todo-complete-bin { bottom: 84px; } }
 
     /* Card title */
@@ -1422,8 +1430,8 @@
 </div>
 
 <div class="todo-complete-bin" id="todo-complete-bin">
-  <svg width="14" height="11" viewBox="0 0 14 11" fill="none" aria-hidden="true"><path d="M1 5.5L5 9.5L13 1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-  <span>Drop to complete</span>
+  <span class="bin-icon" id="bin-icon"></span>
+  <span id="bin-label"></span>
 </div>
 
 <script>
@@ -1727,6 +1735,17 @@ const POMO_PLAY  = `<svg width="9" height="11" viewBox="0 0 9 11" fill="currentC
 const POMO_PAUSE = `<svg width="9" height="11" viewBox="0 0 9 11" fill="currentColor" aria-hidden="true"><rect x="0" y="0" width="3.5" height="11" rx="1"/><rect x="5.5" y="0" width="3.5" height="11" rx="1"/></svg>`;
 const POMO_STOP  = `<svg width="9" height="11" viewBox="0 0 9 11" fill="currentColor" aria-hidden="true"><rect x="0" y="1" width="9" height="9" rx="1.5"/></svg>`;
 
+const BIN_CHECK_SVG  = `<svg width="14" height="11" viewBox="0 0 14 11" fill="none" aria-hidden="true"><path d="M1 5.5L5 9.5L13 1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const BIN_REMOVE_SVG = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true"><path d="M1 1L10 10M10 1L1 10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
+
+function setBinMode(mode) {
+  const bin = document.getElementById('todo-complete-bin');
+  bin.classList.toggle('remove-mode', mode === 'remove');
+  document.getElementById('bin-icon').innerHTML = mode === 'remove' ? BIN_REMOVE_SVG : BIN_CHECK_SVG;
+  document.getElementById('bin-label').textContent = mode === 'remove' ? 'Drop to remove' : 'Drop to complete';
+}
+setBinMode('complete');
+
 function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
@@ -1970,45 +1989,35 @@ function renderAllHabits() {
 
 // ── Cards ─────────────────────────────────────────────────────────
 
-let _dragId = null;
-let _placeholder = null;
-
 function renderCards() {
   const grid  = document.getElementById('cards-grid');
   const cards = state.cards || [];
 
   const COLOR_NAMES = ['green','blue','yellow','red','purple'];
   grid.innerHTML = cards.map(c => `
-    <div class="card" draggable="true" data-id="${esc(c.id)}"${c.color ? ` data-color="${esc(c.color)}"` : ''}>
+    <div class="card" data-id="${esc(c.id)}"${c.color ? ` data-color="${esc(c.color)}"` : ''}>
       <div class="card-handle">
-        <div class="card-colors" draggable="false">
-          ${COLOR_NAMES.map(col => `<div class="card-color-dot${c.color === col ? ' active' : ''}" data-color="${col}" draggable="false" style="background:var(--card-${col})" title="${col}"></div>`).join('')}
+        <div class="card-colors">
+          ${COLOR_NAMES.map(col => `<div class="card-color-dot${c.color === col ? ' active' : ''}" data-color="${col}" style="background:var(--card-${col})" title="${col}"></div>`).join('')}
         </div>
         ${DRAG_SVG}
       </div>
       <button class="card-del" title="Delete card" tabindex="-1">×</button>
-      <input class="card-title${c.title ? '' : ' empty'}" placeholder="Title…" value="${esc(c.title || '')}" draggable="false">
-      <textarea class="card-text" placeholder="Notes…" draggable="false">${esc(c.text)}</textarea>
+      <input class="card-title${c.title ? '' : ' empty'}" placeholder="Title…" value="${esc(c.title || '')}">
+      <textarea class="card-text" placeholder="Notes…">${esc(c.text)}</textarea>
     </div>
   `).join('');
 
   grid.querySelectorAll('.card').forEach(card => {
     const id = card.dataset.id;
 
-    card.addEventListener('dragstart', e => {
-      _dragId = id;
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', id);
-      _placeholder = document.createElement('div');
-      _placeholder.className = 'card-placeholder';
-      requestAnimationFrame(() => card.classList.add('dragging'));
-    });
-
-    card.addEventListener('dragend', () => {
-      card.classList.remove('dragging');
-      _placeholder?.remove();
-      _placeholder = null;
-      _dragId = null;
+    const handle = card.querySelector('.card-handle');
+    handle.addEventListener('pointerdown', e => {
+      if (e.target.closest('.card-colors')) return;
+      if (e.button !== undefined && e.button !== 0) return;
+      e.preventDefault();
+      handle.setPointerCapture(e.pointerId);
+      startCardDrag(e, handle, card, id);
     });
 
     card.querySelector('.card-del').addEventListener('click', () => {
@@ -2024,7 +2033,6 @@ function renderCards() {
     });
 
     const titleEl = card.querySelector('.card-title');
-    titleEl.addEventListener('dragstart', e => { e.stopPropagation(); e.preventDefault(); });
     titleEl.addEventListener('input', () => {
       const c = (state.cards || []).find(x => x.id === id);
       if (c) {
@@ -2035,7 +2043,6 @@ function renderCards() {
     });
 
     const ta = card.querySelector('.card-text');
-    ta.addEventListener('dragstart', e => { e.stopPropagation(); e.preventDefault(); });
     ta.addEventListener('input', () => {
       const c = (state.cards || []).find(x => x.id === id);
       if (c) { c.text = ta.value; scheduleSave(); }
@@ -2051,7 +2058,6 @@ function renderCards() {
         }
       });
     });
-    card.querySelector('.card-colors')?.addEventListener('mousedown', e => e.stopPropagation());
   });
 
   // Add Card button lives inside the grid as a natural grid cell
@@ -2069,51 +2075,130 @@ function renderCards() {
 }
 
 // Grid-level drag handlers — attached once, not inside renderCards
-(function initCardDragDrop() {
+// ── Card drag: reorder (grid-aware), or drop on the bin to delete ──
+
+function startCardDrag(startEvent, handleEl, itemEl, id) {
   const grid = document.getElementById('cards-grid');
+  const bin  = document.getElementById('todo-complete-bin');
+  setBinMode('remove');
+  const startRect = itemEl.getBoundingClientRect();
+  const startX = startEvent.clientX, startY = startEvent.clientY;
 
-  grid.addEventListener('dragover', e => {
-    e.preventDefault();
-    if (!_placeholder) return;
-    e.dataTransfer.dropEffect = 'move';
+  const placeholder = document.createElement('div');
+  placeholder.className = 'card-placeholder';
+  placeholder.style.height = startRect.height + 'px';
+  itemEl.parentNode.insertBefore(placeholder, itemEl);
 
-    const target = e.target.closest('.card');
-    if (!target || target.dataset.id === _dragId) {
-      if (_placeholder.parentNode !== grid) grid.appendChild(_placeholder);
-      return;
+  itemEl.style.left   = startRect.left + 'px';
+  itemEl.style.top    = startRect.top + 'px';
+  itemEl.style.width  = startRect.width + 'px';
+  itemEl.style.margin = '0';
+  itemEl.classList.add('dragging');
+  document.body.appendChild(itemEl);
+  bin.classList.add('visible');
+
+  let overBin = false, lastDx = 0, lastDy = 0;
+
+  function onMove(e) {
+    const dx = e.clientX - startX, dy = e.clientY - startY;
+    lastDx = dx; lastDy = dy;
+    const rot = Math.max(-6, Math.min(6, dx * 0.06));
+    itemEl.style.transform = `translate(${dx}px, ${dy}px) rotate(${rot}deg)`;
+
+    const br = bin.getBoundingClientRect();
+    const nowOverBin = e.clientX >= br.left && e.clientX <= br.right && e.clientY >= br.top && e.clientY <= br.bottom;
+    if (nowOverBin !== overBin) { overBin = nowOverBin; bin.classList.toggle('hover', overBin); }
+    if (overBin) return;
+
+    const under  = document.elementFromPoint(e.clientX, e.clientY);
+    const target = under?.closest('.card');
+    if (target && target !== itemEl) {
+      const r = target.getBoundingClientRect();
+      const sameRow      = e.clientY >= r.top && e.clientY <= r.bottom;
+      const insertBefore = sameRow ? (e.clientX < r.left + r.width / 2) : (e.clientY < r.top + r.height / 2);
+      if (insertBefore) target.parentNode.insertBefore(placeholder, target);
+      else target.after(placeholder);
+    } else if (!target) {
+      if (placeholder.parentNode !== grid) grid.appendChild(placeholder);
     }
+  }
 
-    // Fix 3: use X midpoint when mouse is in same row, Y midpoint otherwise
-    const rect = target.getBoundingClientRect();
-    const sameRow    = e.clientY >= rect.top && e.clientY <= rect.bottom;
-    const insertBefore = sameRow
-      ? e.clientX < rect.left + rect.width / 2
-      : e.clientY < rect.top + rect.height / 2;
+  function settleAndCleanup(transitionClass, applyFinalStyles, after) {
+    itemEl.classList.remove('dragging');
+    itemEl.classList.add(transitionClass);
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      placeholder.remove();
+      itemEl.remove();
+      after();
+    };
+    itemEl.addEventListener('transitionend', finish, { once: true });
+    setTimeout(finish, 600);
+    requestAnimationFrame(applyFinalStyles);
+  }
 
-    if (insertBefore) grid.insertBefore(_placeholder, target);
-    else target.after(_placeholder);
-  });
+  function finish() {
+    document.removeEventListener('pointermove', onMove, true);
+    document.removeEventListener('pointerup', finish, true);
+    document.removeEventListener('pointercancel', finish, true);
+    bin.classList.remove('visible', 'hover');
 
-  grid.addEventListener('drop', e => {
-    e.preventDefault();
-    if (!_dragId || !_placeholder?.parentNode) return;
-    const newOrderIds = [];
-    for (const child of grid.children) {
-      if (child === _placeholder) newOrderIds.push(_dragId);
-      else if (child.classList.contains('card') && child.dataset.id !== _dragId) newOrderIds.push(child.dataset.id);
+    if (overBin) {
+      const br  = bin.getBoundingClientRect();
+      const cur = itemEl.getBoundingClientRect();
+      const tx  = lastDx + (br.left + br.width / 2)  - (cur.left + cur.width / 2);
+      const ty  = lastDy + (br.top  + br.height / 2) - (cur.top  + cur.height / 2);
+      settleAndCleanup('completing', () => {
+        itemEl.style.transform = `translate(${tx}px, ${ty}px) scale(0.25)`;
+        itemEl.style.opacity   = '0';
+      }, () => {
+        const cards = state.cards || [];
+        const idx   = cards.findIndex(x => x.id === id);
+        const item  = cards[idx];
+        state.cards = cards.filter(x => x.id !== id);
+        save(); renderCards();
+        showUndo('Card deleted',
+          () => { state.cards = state.cards || []; state.cards.splice(idx, 0, item); save(); renderCards(); },
+          () => {}
+        );
+      });
+    } else {
+      const phRect = placeholder.getBoundingClientRect();
+      const tx = phRect.left - startRect.left, ty = phRect.top - startRect.top;
+
+      const newOrderIds = [];
+      for (const child of grid.children) {
+        if (child === placeholder) newOrderIds.push(id);
+        else if (child.classList.contains('card') && child.dataset.id !== id) newOrderIds.push(child.dataset.id);
+      }
+      if (!newOrderIds.includes(id)) newOrderIds.push(id);
+      const cardMap      = Object.fromEntries((state.cards || []).map(c => [c.id, c]));
+      const prevOrder    = (state.cards || []).map(c => c.id).join(',');
+      const orderChanged = newOrderIds.join(',') !== prevOrder;
+      state.cards = newOrderIds.map(i => cardMap[i]).filter(Boolean);
+
+      settleAndCleanup('settling', () => {
+        itemEl.style.transform = `translate(${tx}px, ${ty}px) rotate(0deg)`;
+      }, () => {
+        if (orderChanged) save();
+        renderCards();
+      });
     }
-    if (!newOrderIds.includes(_dragId)) newOrderIds.push(_dragId);
-    const cardMap = Object.fromEntries((state.cards || []).map(c => [c.id, c]));
-    state.cards = newOrderIds.map(id => cardMap[id]).filter(Boolean);
-    save(); renderCards();
-  });
-})();
+  }
+
+  document.addEventListener('pointermove', onMove, true);
+  document.addEventListener('pointerup', finish, true);
+  document.addEventListener('pointercancel', finish, true);
+}
 
 // ── Todo drag: reorder, or drop on the completion bin ──────────────
 
 function startTodoCardDrag(startEvent, handleEl, itemEl, id, viewDate) {
   const list = document.getElementById('todo-list');
   const bin  = document.getElementById('todo-complete-bin');
+  setBinMode('complete');
   const startRect = itemEl.getBoundingClientRect();
   const startX = startEvent.clientX, startY = startEvent.clientY;
 
