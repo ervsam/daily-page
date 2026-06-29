@@ -121,15 +121,20 @@
 
     /* Inline todo edit input */
     .todo-edit-input {
+      display: block;
       flex: 1;
+      width: 100%;
       border: none;
       background: none;
       font-size: 16px;
       font-family: inherit;
+      line-height: 1.4;
       color: var(--text);
       outline: none;
       border-bottom: 1.5px solid var(--accent);
       padding: 1px 0;
+      resize: none;
+      overflow: hidden;
     }
 
     .btn-del {
@@ -184,6 +189,9 @@
       padding: 5px 0 0 60px;
       letter-spacing: 0.03em;
     }
+    .hint-tag { cursor: pointer; transition: color 0.12s; }
+    .hint-tag:hover { color: var(--muted); }
+    .todo-edit-hint { list-style: none; }
 
     .sep {
       height: 1px;
@@ -1393,7 +1401,7 @@
       <div class="add-icon"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 0V10M0 5H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div>
       <input class="add-input" id="add-input" type="text" placeholder="Add a task…" autocomplete="off" />
     </div>
-    <p class="add-hint" id="add-hint">@tomorrow · [30] · #project</p>
+    <p class="add-hint" id="add-hint"><span class="hint-tag" data-insert="@tomorrow">@tomorrow</span> · <span class="hint-tag" data-insert="[30]">[30]</span> · <span class="hint-tag" data-insert="#project">#project</span></p>
   </div>
 
   <div class="sep"></div>
@@ -1832,27 +1840,56 @@ function render() {
       }
     });
 
-    // Click text → edit in place
+    // Click text → edit in place (multi-line, with clickable @tomorrow/[N]/#project hints)
     el.querySelector('.todo-text')?.addEventListener('click', () => {
       if (isPast || !t) return;
       const textEl = el.querySelector('.todo-text');
       if (!textEl) return;
-      const input = document.createElement('input');
-      input.type  = 'text';
-      input.value = t.text;
-      input.className = 'todo-edit-input';
-      textEl.replaceWith(input);
-      input.focus();
-      input.select();
+
+      const textarea = document.createElement('textarea');
+      textarea.rows = 1;
+      textarea.value = t.text;
+      textarea.className = 'todo-edit-input';
+      textEl.replaceWith(textarea);
+
+      const hint = document.createElement('li');
+      hint.className = 'add-hint todo-edit-hint';
+      hint.innerHTML = '<span class="hint-tag" data-insert="@tomorrow">@tomorrow</span> · <span class="hint-tag" data-insert="[30]">[30]</span> · <span class="hint-tag" data-insert="#project">#project</span>';
+      el.after(hint);
+      wireHintTagClicks(hint, textarea);
+
+      autoGrowTextarea(textarea);
+      textarea.addEventListener('input', () => autoGrowTextarea(textarea));
+      textarea.focus();
+      textarea.select();
+
+      // Escape sets this so the blur that render() forces on this now-detached
+      // textarea (removing it from the DOM moves focus, which fires blur) doesn't
+      // also run commit() and silently re-save the discarded edit
+      let cancelled = false;
       const commit = () => {
-        const val = input.value.trim();
-        if (val) t.text = val;
+        if (cancelled) return;
+        const raw = textarea.value.trim();
+        if (raw) {
+          const parsed = parseTodoTokens(raw, viewDate);
+          if (parsed.text) {
+            t.text = parsed.text;
+            if (parsed.mins)      t.mins      = parsed.mins;
+            if (parsed.projectId) t.projectId = parsed.projectId;
+            if (parsed.targetDate !== viewDate) {
+              state.todos[viewDate] = (state.todos[viewDate] || []).filter(x => x.id !== id);
+              if (!state.todos[parsed.targetDate]) state.todos[parsed.targetDate] = [];
+              if (!state.todos[parsed.targetDate].find(x => x.id === id)) state.todos[parsed.targetDate].push(t);
+            }
+          }
+        }
+        hint.remove();
         save(); render();
       };
-      input.addEventListener('blur', commit);
-      input.addEventListener('keydown', e2 => {
-        if (e2.key === 'Enter') input.blur();
-        if (e2.key === 'Escape') render();
+      textarea.addEventListener('blur', commit);
+      textarea.addEventListener('keydown', e2 => {
+        if (e2.key === 'Enter' && !e2.shiftKey) { e2.preventDefault(); textarea.blur(); }
+        if (e2.key === 'Escape') { cancelled = true; hint.remove(); render(); }
       });
     });
 
@@ -2827,18 +2864,18 @@ document.getElementById('focus-exit-btn').addEventListener('click', () => {
   document.body.classList.remove('focus-mode');
 });
 
-// ── Add todo ──────────────────────────────────────────────────────
+// ── Shared @tomorrow / [N] / #project token parsing ────────────────
 
-document.getElementById('add-input').addEventListener('keydown', e => {
-  if (e.key !== 'Enter') return;
-  let val = e.target.value.trim();
-  if (!val) return;
+// Used by both the Add box and inline todo editing, so the tokens behave
+// identically regardless of whether they were typed or clicked in from a hint
+function parseTodoTokens(rawText, baseDate) {
+  let val = rawText;
 
   // @tomorrow routing
-  let targetDate = TODAY;
+  let targetDate = baseDate;
   if (val.includes('@tomorrow')) {
     val = val.replace(/@tomorrow/g, '').trim();
-    targetDate = shiftDate(TODAY, 1);
+    targetDate = shiftDate(baseDate, 1);
   }
 
   // [N] time estimate
@@ -2858,7 +2895,57 @@ document.getElementById('add-input').addEventListener('keydown', e => {
     if (matched) { projectId = matched.id; val = val.replace(projMatch[0], '').trim(); }
   }
 
+  return { text: val, targetDate, mins, projectId };
+}
+
+function autoGrowTextarea(textarea) {
+  textarea.style.height = 'auto';
+  textarea.style.height = textarea.scrollHeight + 'px';
+}
+
+// Inserts text at the current cursor position; if the whole field happens to
+// be selected (e.g. right after opening an editor, before the user has
+// clicked to position a cursor), treats it as append rather than replace-all
+function insertAtCursor(input, text) {
+  let start = input.selectionStart;
+  let end   = input.selectionEnd;
+  if (start === 0 && end === input.value.length && end > 0) start = end;
+
+  const before = input.value.slice(0, start);
+  const after  = input.value.slice(end);
+  const spaceBefore = before.length > 0 && !/\s$/.test(before) ? ' ' : '';
+  const spaceAfter  = after.length  > 0 && !/^\s/.test(after)  ? ' ' : '';
+  const inserted = spaceBefore + text + spaceAfter;
+
+  input.value = before + inserted + after;
+  const pos = before.length + inserted.length;
+  input.setSelectionRange(pos, pos);
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  input.focus();
+}
+
+// Wires every .hint-tag inside hintEl to insert into targetInput on click,
+// without ever letting targetInput lose focus (which would commit/destroy
+// an in-progress todo edit before the click handler runs)
+function wireHintTagClicks(hintEl, targetInput) {
+  hintEl.querySelectorAll('.hint-tag').forEach(tagEl => {
+    tagEl.addEventListener('mousedown', e => e.preventDefault());
+    tagEl.addEventListener('click', () => insertAtCursor(targetInput, tagEl.dataset.insert));
+  });
+}
+
+// ── Add todo ──────────────────────────────────────────────────────
+
+wireHintTagClicks(document.getElementById('add-hint'), document.getElementById('add-input'));
+
+document.getElementById('add-input').addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  const raw = e.target.value.trim();
+  if (!raw) return;
+
+  const { text: val, targetDate, mins, projectId } = parseTodoTokens(raw, TODAY);
   if (!val) return;
+
   if (!state.todos[targetDate]) state.todos[targetDate] = [];
   const todo = { id: 'u' + Date.now(), text: val, done: false };
   if (mins)      todo.mins      = mins;
