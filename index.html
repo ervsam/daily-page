@@ -938,7 +938,8 @@
     .sheet-content .sidebar-habit-name { font-size: 13px; }
     .sheet-content .sidebar-add-habit { font-size: 13px; }
 
-    /* Todo drag-to-reorder */
+    /* Todo drag-to-reorder + drag-to-complete */
+    .todo-item { transition: box-shadow 0.15s, border-radius 0.15s, background 0.15s; }
     .todo-drag-handle {
       color: var(--faint);
       font-size: 12px;
@@ -948,10 +949,25 @@
       opacity: 0;
       transition: opacity 0.12s;
       user-select: none;
+      touch-action: none;
     }
     .todo-item:hover .todo-drag-handle { opacity: 1; }
     .todo-drag-handle:active { cursor: grabbing; }
-    .todo-item.dragging { opacity: 0.35; }
+
+    .todo-item.dragging,
+    .todo-item.settling,
+    .todo-item.completing {
+      position: fixed;
+      z-index: 1000;
+      background: var(--surface);
+      border-radius: 10px;
+      box-shadow: 0 18px 36px rgba(0,0,0,0.22), 0 6px 12px rgba(0,0,0,0.14);
+      pointer-events: none;
+    }
+    .todo-item.dragging   { cursor: grabbing; }
+    .todo-item.settling   { transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease, border-radius 0.3s ease; }
+    .todo-item.completing { transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.32s ease; }
+
     .todo-placeholder {
       height: 46px;
       border: 2px dashed var(--accent);
@@ -959,6 +975,36 @@
       list-style: none;
       opacity: 0.4;
     }
+
+    .todo-complete-bin {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(16px) scale(0.94);
+      background: var(--surface);
+      border: 1.5px dashed var(--accent);
+      border-radius: 14px;
+      padding: 12px 26px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--accent);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 900;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+      transition: opacity 0.22s ease, transform 0.22s ease, background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    }
+    .todo-complete-bin.visible { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+    .todo-complete-bin.hover {
+      background: var(--accent);
+      border-style: solid;
+      color: var(--bg);
+      transform: translateX(-50%) translateY(0) scale(1.1);
+    }
+    @media (max-width: 960px) { .todo-complete-bin { bottom: 84px; } }
 
     /* Card title */
     .card-title {
@@ -1367,6 +1413,11 @@
   <button id="undo-btn">Undo</button>
 </div>
 
+<div class="todo-complete-bin" id="todo-complete-bin">
+  <svg width="14" height="11" viewBox="0 0 14 11" fill="none" aria-hidden="true"><path d="M1 5.5L5 9.5L13 1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  <span>Drop to complete</span>
+</div>
+
 <script>
 const BIN_ID    = '69f4cb4936566621a8139b36';
 const API_KEY   = '$2a$10$rC9h5aCfZpw8uTK74VBwWO52r5ELWEXauUOsHkltH/ICJs5gbxWeO';
@@ -1712,8 +1763,8 @@ function render() {
   list.innerHTML = todos.map(t => {
     const projName = t.projectId ? getProjectName(t.projectId) : '';
     return `
-    <li class="todo-item${t.done ? ' done' : ''}" data-id="${esc(t.id)}"${!isPast ? ' draggable="true"' : ''}>
-      ${!isPast ? `<div class="todo-drag-handle" title="Drag to reorder">${DRAG_SVG}</div>` : ''}
+    <li class="todo-item${t.done ? ' done' : ''}" data-id="${esc(t.id)}">
+      ${!isPast ? `<div class="todo-drag-handle" title="Drag to reorder, or drop on the bin to complete">${DRAG_SVG}</div>` : ''}
       <div class="check-circle">${CHECK_SVG}</div>
       <span class="todo-text">${esc(t.text)}</span>
       ${projName ? `<span class="todo-proj-tag">${esc(projName.slice(0, 12))}</span>` : ''}
@@ -1823,24 +1874,14 @@ function render() {
       if (t) toggleFocusPomo(id, t.text);
     });
 
-    // Drag to reorder — only initiates from the handle
+    // Drag to reorder, or drop on the completion bin — only initiates from the handle
     if (!isPast) {
-      el.querySelector('.todo-drag-handle')?.addEventListener('mousedown', () => { _todoHandleDown = true; });
-      el.addEventListener('dragstart', e => {
-        if (!_todoHandleDown) { e.preventDefault(); return; }
-        _todoDragId = id;
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', id);
-        _todoPlaceholder = document.createElement('li');
-        _todoPlaceholder.className = 'todo-placeholder';
-        requestAnimationFrame(() => el.classList.add('dragging'));
-      });
-      el.addEventListener('dragend', () => {
-        el.classList.remove('dragging');
-        _todoPlaceholder?.remove();
-        _todoPlaceholder = null;
-        _todoDragId      = null;
-        _todoHandleDown  = false;
+      const handle = el.querySelector('.todo-drag-handle');
+      handle?.addEventListener('pointerdown', e => {
+        if (e.button !== undefined && e.button !== 0) return;
+        e.preventDefault();
+        handle.setPointerCapture(e.pointerId);
+        startTodoCardDrag(e, handle, el, id, viewDate);
       });
     }
   });
@@ -2060,39 +2101,123 @@ function renderCards() {
   });
 })();
 
-// ── Todo drag-to-reorder ──────────────────────────────────────────
+// ── Todo drag: reorder, or drop on the completion bin ──────────────
 
-let _todoDragId      = null;
-let _todoPlaceholder = null;
-let _todoHandleDown  = false;
-document.addEventListener('mouseup', () => { _todoHandleDown = false; });
-
-(function initTodoDragDrop() {
+function startTodoCardDrag(startEvent, handleEl, itemEl, id, viewDate) {
   const list = document.getElementById('todo-list');
-  list.addEventListener('dragover', e => {
-    e.preventDefault();
-    if (!_todoPlaceholder) return;
-    e.dataTransfer.dropEffect = 'move';
-    const target = e.target.closest('.todo-item');
-    if (!target || target.dataset.id === _todoDragId) return;
-    const rect = target.getBoundingClientRect();
-    if (e.clientY < rect.top + rect.height / 2) list.insertBefore(_todoPlaceholder, target);
-    else target.after(_todoPlaceholder);
-  });
-  list.addEventListener('drop', e => {
-    e.preventDefault();
-    if (!_todoDragId || !_todoPlaceholder?.parentNode) return;
-    const newIds = [];
-    for (const child of list.children) {
-      if (child === _todoPlaceholder) newIds.push(_todoDragId);
-      else if (child.classList.contains('todo-item') && child.dataset.id !== _todoDragId) newIds.push(child.dataset.id);
+  const bin  = document.getElementById('todo-complete-bin');
+  const startRect = itemEl.getBoundingClientRect();
+  const startX = startEvent.clientX, startY = startEvent.clientY;
+
+  const placeholder = document.createElement('li');
+  placeholder.className = 'todo-placeholder';
+  placeholder.style.height = startRect.height + 'px';
+  itemEl.parentNode.insertBefore(placeholder, itemEl);
+
+  itemEl.style.left   = startRect.left + 'px';
+  itemEl.style.top    = startRect.top + 'px';
+  itemEl.style.width  = startRect.width + 'px';
+  itemEl.style.margin = '0';
+  itemEl.classList.add('dragging');
+  document.body.appendChild(itemEl);
+  bin.classList.add('visible');
+
+  let overBin = false, lastDx = 0, lastDy = 0;
+
+  function onMove(e) {
+    const dx = e.clientX - startX, dy = e.clientY - startY;
+    lastDx = dx; lastDy = dy;
+    const rot = Math.max(-6, Math.min(6, dx * 0.06));
+    itemEl.style.transform = `translate(${dx}px, ${dy}px) rotate(${rot}deg)`;
+
+    const br = bin.getBoundingClientRect();
+    const nowOverBin = e.clientX >= br.left && e.clientX <= br.right && e.clientY >= br.top && e.clientY <= br.bottom;
+    if (nowOverBin !== overBin) { overBin = nowOverBin; bin.classList.toggle('hover', overBin); }
+    if (overBin) return;
+
+    const under  = document.elementFromPoint(e.clientX, e.clientY);
+    const target = under?.closest('.todo-item');
+    if (target && target !== itemEl) {
+      const r = target.getBoundingClientRect();
+      if (e.clientY < r.top + r.height / 2) target.parentNode.insertBefore(placeholder, target);
+      else target.after(placeholder);
     }
-    if (!newIds.includes(_todoDragId)) newIds.push(_todoDragId);
-    const map = Object.fromEntries((state.todos[viewDate] || []).map(t => [t.id, t]));
-    state.todos[viewDate] = newIds.map(id => map[id]).filter(Boolean);
-    save(); render();
-  });
-})();
+  }
+
+  function settleAndCleanup(transitionClass, applyFinalStyles, after) {
+    itemEl.classList.remove('dragging');
+    itemEl.classList.add(transitionClass);
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      placeholder.remove();
+      itemEl.remove();
+      after();
+    };
+    itemEl.addEventListener('transitionend', finish, { once: true });
+    setTimeout(finish, 600); // fallback in case transitionend doesn't fire
+    // Defer to the next frame so the browser registers the new transition
+    // (via transitionClass) before the style change it's meant to animate
+    requestAnimationFrame(applyFinalStyles);
+  }
+
+  function finish() {
+    handleEl.removeEventListener('pointermove', onMove);
+    handleEl.removeEventListener('pointerup', finish);
+    handleEl.removeEventListener('pointercancel', finish);
+    bin.classList.remove('visible', 'hover');
+
+    if (overBin) {
+      const br  = bin.getBoundingClientRect();
+      const cur = itemEl.getBoundingClientRect();
+      const tx  = lastDx + (br.left + br.width / 2)  - (cur.left + cur.width / 2);
+      const ty  = lastDy + (br.top  + br.height / 2) - (cur.top  + cur.height / 2);
+      settleAndCleanup('completing', () => {
+        itemEl.style.transform = `translate(${tx}px, ${ty}px) scale(0.25)`;
+        itemEl.style.opacity   = '0';
+      }, () => {
+        const t = (state.todos[viewDate] || []).find(x => x.id === id);
+        if (t) {
+          t.done = true;
+          // Keep every duplicate of this id (from earlier carryovers) in sync —
+          // see carryOver()'s doneIds check for why this matters
+          for (const date of Object.keys(state.todos)) {
+            if (date === viewDate) continue;
+            for (const other of state.todos[date]) if (other.id === id) other.done = true;
+          }
+          save();
+        }
+        render();
+      });
+    } else {
+      const phRect = placeholder.getBoundingClientRect();
+      const tx = phRect.left - startRect.left, ty = phRect.top - startRect.top;
+
+      const newIds = [];
+      for (const child of list.children) {
+        if (child === placeholder) newIds.push(id);
+        else if (child.classList.contains('todo-item') && child.dataset.id !== id) newIds.push(child.dataset.id);
+      }
+      if (!newIds.includes(id)) newIds.push(id);
+      const map         = Object.fromEntries((state.todos[viewDate] || []).map(x => [x.id, x]));
+      const prevOrder    = (state.todos[viewDate] || []).map(x => x.id).join(',');
+      const orderChanged = newIds.join(',') !== prevOrder;
+      state.todos[viewDate] = newIds.map(i => map[i]).filter(Boolean);
+
+      settleAndCleanup('settling', () => {
+        itemEl.style.transform = `translate(${tx}px, ${ty}px) rotate(0deg)`;
+      }, () => {
+        if (orderChanged) save();
+        render();
+      });
+    }
+  }
+
+  handleEl.addEventListener('pointermove', onMove);
+  handleEl.addEventListener('pointerup', finish);
+  handleEl.addEventListener('pointercancel', finish);
+}
 
 // ── Navigation ────────────────────────────────────────────────────
 
