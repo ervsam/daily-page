@@ -2171,9 +2171,9 @@ function startTodoCardDrag(startEvent, handleEl, itemEl, id, viewDate) {
   }
 
   function finish() {
-    handleEl.removeEventListener('pointermove', onMove);
-    handleEl.removeEventListener('pointerup', finish);
-    handleEl.removeEventListener('pointercancel', finish);
+    document.removeEventListener('pointermove', onMove, true);
+    document.removeEventListener('pointerup', finish, true);
+    document.removeEventListener('pointercancel', finish, true);
     bin.classList.remove('visible', 'hover');
 
     if (overBin) {
@@ -2222,9 +2222,14 @@ function startTodoCardDrag(startEvent, handleEl, itemEl, id, viewDate) {
     }
   }
 
-  handleEl.addEventListener('pointermove', onMove);
-  handleEl.addEventListener('pointerup', finish);
-  handleEl.addEventListener('pointercancel', finish);
+  // Listen on document, not handleEl — pointer capture set on the handle is
+  // silently released the moment it's reparented into document.body above,
+  // and without it, events would only reach the handle while the cursor is
+  // still literally over it. Document-level listeners don't depend on
+  // capture or hit-testing at all, so they keep firing for the whole drag.
+  document.addEventListener('pointermove', onMove, true);
+  document.addEventListener('pointerup', finish, true);
+  document.addEventListener('pointercancel', finish, true);
 }
 
 // ── Navigation ────────────────────────────────────────────────────
