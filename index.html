@@ -1561,7 +1561,9 @@ async function binSave(s) {
 }
 
 let saveTimer = null;
+let stateReady = false; // blocks binSave until remote fetch (or failure) completes on init
 function scheduleSave() {
+  if (!stateReady) return;
   clearTimeout(saveTimer);
   syncStatus('saving');
   saveTimer = setTimeout(async () => {
@@ -2607,8 +2609,10 @@ let groceryStore = 'walmart'; // declared before init IIFE — renderGroceries()
     if (Array.isArray(remote.habits) || remote.todos) {
       absorb(remote);
     } else {
+      stateReady = true; // no remote data — JSONBin is blank, safe to push local
       await binSave(state);
     }
+    stateReady = true;
     carryOver();
     updateCache();
     syncStatus('synced');
@@ -2630,10 +2634,25 @@ let groceryStore = 'walmart'; // declared before init IIFE — renderGroceries()
     }
   } catch (e) {
     console.warn('JSONBin fetch failed:', e);
+    stateReady = true; // fetch failed — fall back to local cache, allow writes
     syncStatus('error');
     if (!cached) showSyncError();
   }
 })();
+
+// On bfcache tab restore, re-fetch remote before allowing any writes
+window.addEventListener('pageshow', e => {
+  if (!e.persisted) return;
+  stateReady = false;
+  binFetch().then(remote => {
+    if (Array.isArray(remote.habits) || remote.todos) absorb(remote);
+    updateCache();
+    render(); renderWhy(); renderProjects(); renderGroceries(); renderGroceriesPreview(); renderProjectsPreview(); renderHabitsSidebar(); renderCards();
+  }).catch(() => {}).finally(() => {
+    stateReady = true;
+    carryOver();
+  });
+});
 
 // ── Pomodoro ──────────────────────────────────────────────────────
 
