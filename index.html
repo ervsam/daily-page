@@ -150,7 +150,7 @@
       flex-shrink: 0;
     }
     .todo-item:hover .btn-del,
-    .sidebar-habit-row:hover .btn-del { opacity: 1; }
+    .habit-item:hover .btn-del { opacity: 1; }
 
     .add-row {
       display: flex;
@@ -675,7 +675,7 @@
       display: flex;
       align-items: center;
       gap: 6px;
-      padding: 2px 0 6px 26px;
+      padding: 2px 0 6px 42px;
       border-bottom: 1px solid var(--border);
     }
     .sidebar-habit-dots { display: flex; gap: 3px; }
@@ -701,6 +701,34 @@
       border-top: 1px solid var(--border);
     }
     .sidebar-add-habit::placeholder { color: var(--faint); }
+
+    .habit-drag-handle {
+      color: var(--faint);
+      cursor: grab;
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+      touch-action: none;
+    }
+    .habit-drag-handle:hover { color: var(--muted); }
+    .habit-item.habit-dragging {
+      background: var(--surface);
+      border-radius: 6px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+      pointer-events: none;
+    }
+    .habit-drag-placeholder {
+      background: var(--border);
+      border-radius: 4px;
+      opacity: 0.5;
+    }
+    .sidebar-habit-dots .dot.habit-today { box-shadow: 0 0 0 1.5px var(--faint); }
+    .sidebar-habit-dots .dot.done.habit-today { box-shadow: 0 0 0 1.5px var(--accent); }
+    .sidebar-habit-name-edit {
+      flex: 1; min-width: 0; border: none; background: none;
+      font-size: 11px; font-family: inherit; color: var(--text);
+      border-bottom: 1px solid var(--accent); padding: 0; outline: none;
+    }
 
     /* Cards */
     .cards-grid {
@@ -1959,19 +1987,24 @@ function renderHabitsInto(el) {
     const todayDone = state.habitLog[TODAY]?.[h] || false;
     const s = calcStreak(h);
     const dots = Array.from({ length: HISTORY_DAYS }, (_, i) => {
-      const d = dateStr(HISTORY_DAYS - i);
-      return `<div class="dot${state.habitLog[d]?.[h] ? ' done' : ''}"></div>`;
+      const d = dateStr(HISTORY_DAYS - 1 - i); // dateStr(6)…dateStr(0)=today
+      const done = state.habitLog[d]?.[h] || false;
+      const isToday = (i === HISTORY_DAYS - 1);
+      return `<div class="dot${done ? ' done' : ''}${isToday ? ' habit-today' : ''}"></div>`;
     }).join('');
     return `
-      <div class="sidebar-habit-row" data-habit="${esc(h)}">
-        <div class="check-square${todayDone ? ' done' : ''}" data-habit="${esc(h)}">${CHECK_SVG}</div>
-        <span class="sidebar-habit-name" title="${esc(h)}">${esc(h)}</span>
-        <span class="sidebar-week-rate">${calcWeekRate(h)}/7</span>
-        <button class="btn-del" title="Remove habit" tabindex="-1">×</button>
-      </div>
-      <div class="sidebar-habit-meta">
-        <div class="sidebar-habit-dots">${dots}</div>
-        <span class="sidebar-streak${s > 0 ? ' active' : ''}">${s > 0 ? s + 'd' : ''}</span>
+      <div class="habit-item" data-habit="${esc(h)}">
+        <div class="sidebar-habit-row">
+          <div class="habit-drag-handle">${DRAG_SVG}</div>
+          <div class="check-square${todayDone ? ' done' : ''}" data-habit="${esc(h)}">${CHECK_SVG}</div>
+          <span class="sidebar-habit-name" title="${esc(h)}">${esc(h)}</span>
+          <span class="sidebar-week-rate">${calcWeekRate(h)}/7</span>
+          <button class="btn-del" title="Remove habit" tabindex="-1">×</button>
+        </div>
+        <div class="sidebar-habit-meta">
+          <div class="sidebar-habit-dots">${dots}</div>
+          <span class="sidebar-streak${s > 0 ? ' active' : ''}">${s > 0 ? s + 'd' : ''}</span>
+        </div>
       </div>
     `;
   }).join('') + `<input class="sidebar-add-habit" type="text" placeholder="Add a habit…" autocomplete="off" />`;
@@ -1985,9 +2018,49 @@ function renderHabitsInto(el) {
     });
   });
 
-  el.querySelectorAll('.sidebar-habit-row .btn-del').forEach(btn => {
+  el.querySelectorAll('.habit-drag-handle').forEach(handle => {
+    handle.addEventListener('pointerdown', e => {
+      if (e.button !== undefined && e.button !== 0) return;
+      e.preventDefault();
+      startHabitDrag(e, handle.closest('.habit-item'));
+    });
+  });
+
+  el.querySelectorAll('.sidebar-habit-name').forEach(nameEl => {
+    nameEl.addEventListener('click', () => {
+      const item = nameEl.closest('.habit-item');
+      const oldName = item.dataset.habit;
+      const input = document.createElement('input');
+      input.value = oldName;
+      input.className = 'sidebar-habit-name-edit';
+      nameEl.replaceWith(input);
+      input.focus(); input.select();
+      const commit = () => {
+        const newName = input.value.trim();
+        if (newName && newName !== oldName && !state.habits.includes(newName)) {
+          const idx = state.habits.indexOf(oldName);
+          if (idx !== -1) state.habits[idx] = newName;
+          for (const date of Object.keys(state.habitLog)) {
+            if (state.habitLog[date][oldName] !== undefined) {
+              state.habitLog[date][newName] = state.habitLog[date][oldName];
+              delete state.habitLog[date][oldName];
+            }
+          }
+          save();
+        }
+        renderAllHabits();
+      };
+      input.addEventListener('blur', commit);
+      input.addEventListener('keydown', ke => {
+        if (ke.key === 'Enter')  { ke.preventDefault(); input.blur(); }
+        if (ke.key === 'Escape') { renderAllHabits(); }
+      });
+    });
+  });
+
+  el.querySelectorAll('.habit-item .btn-del').forEach(btn => {
     btn.addEventListener('click', () => {
-      const h   = btn.closest('.sidebar-habit-row').dataset.habit;
+      const h   = btn.closest('.habit-item').dataset.habit;
       const idx = state.habits.indexOf(h);
       state.habits = state.habits.filter(x => x !== h);
       save(); renderAllHabits();
@@ -2006,6 +2079,65 @@ function renderHabitsInto(el) {
     save(); renderAllHabits();
     el.querySelector('.sidebar-add-habit')?.focus();
   });
+}
+
+function startHabitDrag(startEvent, itemEl) {
+  const container = itemEl.parentElement;
+  const startRect = itemEl.getBoundingClientRect();
+  const startX = startEvent.clientX, startY = startEvent.clientY;
+
+  const ph = document.createElement('div');
+  ph.className = 'habit-drag-placeholder';
+  ph.style.height = startRect.height + 'px';
+  itemEl.after(ph);
+
+  itemEl.style.cssText = `position:fixed;left:${startRect.left}px;top:${startRect.top}px;width:${startRect.width}px;z-index:1000;pointer-events:none;`;
+  itemEl.classList.add('habit-dragging');
+  document.body.appendChild(itemEl);
+
+  function onMove(e) {
+    const dx = e.clientX - startX, dy = e.clientY - startY;
+    itemEl.style.transform = `translate(${dx}px,${dy}px)`;
+    const midY = startRect.top + dy + startRect.height / 2;
+    const siblings = [...container.querySelectorAll('.habit-item')];
+    let insertBefore = null;
+    for (const s of siblings) {
+      const r = s.getBoundingClientRect();
+      if (midY < r.top + r.height / 2) { insertBefore = s; break; }
+    }
+    if (insertBefore) container.insertBefore(ph, insertBefore);
+    else {
+      const addInput = container.querySelector('.sidebar-add-habit');
+      addInput ? container.insertBefore(ph, addInput) : container.appendChild(ph);
+    }
+  }
+
+  function finish() {
+    document.removeEventListener('pointermove', onMove, true);
+    document.removeEventListener('pointerup',   finish,  true);
+    document.removeEventListener('pointercancel', finish, true);
+
+    let newIdx = 0;
+    for (const child of container.children) {
+      if (child === ph) break;
+      if (child.classList.contains('habit-item')) newIdx++;
+    }
+
+    const name = itemEl.dataset.habit;
+    const oldIdx = state.habits.indexOf(name);
+    state.habits.splice(oldIdx, 1);
+    state.habits.splice(newIdx, 0, name);
+
+    itemEl.style.cssText = '';
+    itemEl.classList.remove('habit-dragging');
+    ph.remove();
+    save();
+    renderAllHabits();
+  }
+
+  document.addEventListener('pointermove', onMove, true);
+  document.addEventListener('pointerup',   finish,  true);
+  document.addEventListener('pointercancel', finish, true);
 }
 
 function renderHabitsSidebar() {
