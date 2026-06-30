@@ -1819,14 +1819,6 @@ function render() {
     el.querySelector('.check-circle').addEventListener('click', () => {
       if (!t) return;
       t.done = !t.done;
-      // Carryover can leave the same id sitting undone on an earlier day —
-      // keep every copy in sync so it can't be carried forward again later
-      for (const date of Object.keys(state.todos)) {
-        if (date === viewDate) continue;
-        for (const other of state.todos[date]) {
-          if (other.id === id) other.done = t.done;
-        }
-      }
       save();
       if (t.done) {
         el.classList.add('done');
