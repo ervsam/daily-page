@@ -724,6 +724,16 @@
     }
     .sidebar-habit-dots .dot.habit-today { box-shadow: 0 0 0 1.5px var(--faint); }
     .sidebar-habit-dots .dot.done.habit-today { box-shadow: 0 0 0 1.5px var(--accent); }
+    .sidebar-habit-dots .dot.non-target { background: var(--faint); border-radius: 1px; height: 2px; margin-top: 1.5px; }
+    .habit-freq-pills { display: flex; gap: 3px; padding: 3px 0; }
+    .freq-pill {
+      width: 16px; height: 16px; border-radius: 50%;
+      border: 1.5px solid var(--border); background: none;
+      font-size: 8px; font-weight: 600; color: var(--muted);
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      padding: 0; transition: background 0.1s, border-color 0.1s, color 0.1s;
+    }
+    .freq-pill.active { background: var(--accent); border-color: var(--accent); color: #fff; }
     .sidebar-habit-name-edit {
       flex: 1; min-width: 0; border: none; background: none;
       font-size: 11px; font-family: inherit; color: var(--text);
@@ -1592,7 +1602,11 @@ function showUndo(label, restoreFn, commitFn) {
 
 // ── State ─────────────────────────────────────────────────────────
 
-const DEFAULTS = { todos: {}, habitLog: {}, habits: ['Exercise', 'Read', 'Meditate'], deletedIds: [], projects: [], cards: [], whyLog: {}, pomoLog: {}, groceries: { walmart: [], tt: [], costco: [] } };
+const DEFAULTS = { todos: {}, habitLog: {}, habits: [
+  { id: 'h-exercise', name: 'Exercise', freq: 'daily' },
+  { id: 'h-read',     name: 'Read',     freq: 'daily' },
+  { id: 'h-meditate', name: 'Meditate', freq: 'daily' },
+], deletedIds: [], projects: [], cards: [], whyLog: {}, pomoLog: {}, groceries: { walmart: [], tt: [], costco: [] } };
 const state = { ...DEFAULTS, deletedIds: [] };
 
 function absorb(incoming) {
@@ -1604,6 +1618,12 @@ function absorb(incoming) {
   // Migrate old dailyWhy string → per-day whyLog
   if (incoming.dailyWhy && !Object.keys(merged.whyLog || {}).length) {
     merged.whyLog = { [TODAY]: incoming.dailyWhy };
+  }
+  // Migrate habits from string[] → object[]
+  if (Array.isArray(merged.habits)) {
+    merged.habits = merged.habits.map(h =>
+      typeof h === 'string' ? { id: 'h-' + h.toLowerCase().replace(/[^a-z0-9]/g, '-'), name: h, freq: 'daily' } : h
+    );
   }
   Object.assign(state, merged);
 }
@@ -1658,20 +1678,40 @@ function carryOver() {
 
 // ── Habit helpers ─────────────────────────────────────────────────
 
+function uid() { return 'h-' + Math.random().toString(36).slice(2, 9); }
+
+function isTargetDay(habit, dateString) {
+  if (typeof habit === 'string' || habit.freq === 'daily' || !habit.freq?.days) return true;
+  const [y, m, d] = dateString.split('-').map(Number);
+  const dayName = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(y, m - 1, d).getDay()];
+  return habit.freq.days.includes(dayName);
+}
+
 function calcStreak(habit) {
-  const startOffset = state.habitLog[TODAY]?.[habit] ? 0 : 1;
+  const name = typeof habit === 'string' ? habit : habit.name;
+  const todayTarget = isTargetDay(habit, TODAY);
+  const todayDone   = !!state.habitLog[TODAY]?.[name];
   let s = 0;
-  for (let i = startOffset; ; i++) {
-    if (state.habitLog[dateStr(i)]?.[habit]) s++;
+  for (let i = (todayTarget && !todayDone ? 1 : 0); i <= 365; i++) {
+    const d = dateStr(i);
+    if (!isTargetDay(habit, d)) continue;
+    if (state.habitLog[d]?.[name]) s++;
     else break;
   }
   return s;
 }
 
 function calcWeekRate(habit) {
-  let n = 0;
-  for (let i = 0; i < 7; i++) { if (state.habitLog[dateStr(i)]?.[habit]) n++; }
-  return n;
+  const name = typeof habit === 'string' ? habit : habit.name;
+  let done = 0, total = 0;
+  for (let i = 0; i < 7; i++) {
+    const d = dateStr(i);
+    if (isTargetDay(habit, d)) {
+      total++;
+      if (state.habitLog[d]?.[name]) done++;
+    }
+  }
+  return { done, total };
 }
 
 function formatTimeLeft(todos) {
@@ -1980,25 +2020,32 @@ function render() {
 
 // ── Habits — shared render into any container ─────────────────────
 
+const DAY_KEYS   = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const DAY_LABELS  = ['M','T','W','T','F','S','S'];
+
 function renderHabitsInto(el) {
   if (!el) return;
   const HISTORY_DAYS = 7;
   el.innerHTML = state.habits.map(h => {
-    const todayDone = state.habitLog[TODAY]?.[h] || false;
-    const s = calcStreak(h);
+    const name      = h.name;
+    const todayDone = state.habitLog[TODAY]?.[name] || false;
+    const s         = calcStreak(h);
+    const { done: wr, total: wt } = calcWeekRate(h);
     const dots = Array.from({ length: HISTORY_DAYS }, (_, i) => {
-      const d = dateStr(HISTORY_DAYS - 1 - i); // dateStr(6)…dateStr(0)=today
-      const done = state.habitLog[d]?.[h] || false;
+      const d       = dateStr(HISTORY_DAYS - 1 - i);
+      const target  = isTargetDay(h, d);
+      const done    = target && (state.habitLog[d]?.[name] || false);
       const isToday = (i === HISTORY_DAYS - 1);
+      if (!target) return `<div class="dot non-target"></div>`;
       return `<div class="dot${done ? ' done' : ''}${isToday ? ' habit-today' : ''}"></div>`;
     }).join('');
     return `
-      <div class="habit-item" data-habit="${esc(h)}">
+      <div class="habit-item" data-habit="${esc(name)}">
         <div class="sidebar-habit-row">
           <div class="habit-drag-handle">${DRAG_SVG}</div>
-          <div class="check-square${todayDone ? ' done' : ''}" data-habit="${esc(h)}">${CHECK_SVG}</div>
-          <span class="sidebar-habit-name" title="${esc(h)}">${esc(h)}</span>
-          <span class="sidebar-week-rate">${calcWeekRate(h)}/7</span>
+          <div class="check-square${todayDone ? ' done' : ''}" data-habit="${esc(name)}">${CHECK_SVG}</div>
+          <span class="sidebar-habit-name" title="${esc(name)}">${esc(name)}</span>
+          <span class="sidebar-week-rate">${wr}/${wt}</span>
           <button class="btn-del" title="Remove habit" tabindex="-1">×</button>
         </div>
         <div class="sidebar-habit-meta">
@@ -2011,9 +2058,9 @@ function renderHabitsInto(el) {
 
   el.querySelectorAll('.check-square').forEach(sq => {
     sq.addEventListener('click', () => {
-      const h = sq.dataset.habit;
+      const name = sq.dataset.habit;
       if (!state.habitLog[TODAY]) state.habitLog[TODAY] = {};
-      state.habitLog[TODAY][h] = !state.habitLog[TODAY][h];
+      state.habitLog[TODAY][name] = !state.habitLog[TODAY][name];
       save(); renderAllHabits();
     });
   });
@@ -2028,24 +2075,53 @@ function renderHabitsInto(el) {
 
   el.querySelectorAll('.sidebar-habit-name').forEach(nameEl => {
     nameEl.addEventListener('click', () => {
-      const item = nameEl.closest('.habit-item');
+      const item    = nameEl.closest('.habit-item');
       const oldName = item.dataset.habit;
+      const habitObj = state.habits.find(h => h.name === oldName);
+      if (!habitObj) return;
+
+      // Replace name with input
       const input = document.createElement('input');
       input.value = oldName;
       input.className = 'sidebar-habit-name-edit';
       nameEl.replaceWith(input);
+
+      // Replace meta dots with day-picker pills
+      const metaEl      = item.querySelector('.sidebar-habit-meta');
+      const currentDays = habitObj.freq === 'daily' ? [...DAY_KEYS] : (habitObj.freq?.days || [...DAY_KEYS]);
+      const selected    = new Set(currentDays);
+      metaEl.innerHTML  = `<div class="habit-freq-pills">${
+        DAY_KEYS.map((d, i) =>
+          `<button class="freq-pill${selected.has(d) ? ' active' : ''}" data-day="${d}" type="button">${DAY_LABELS[i]}</button>`
+        ).join('')
+      }</div>`;
+      metaEl.querySelectorAll('.freq-pill').forEach(pill => {
+        pill.addEventListener('mousedown', e => e.preventDefault());
+        pill.addEventListener('click', () => {
+          const day = pill.dataset.day;
+          if (selected.has(day)) { if (selected.size > 1) selected.delete(day); }
+          else selected.add(day);
+          pill.classList.toggle('active', selected.has(day));
+        });
+      });
+
       input.focus(); input.select();
+      let cancelled = false;
       const commit = () => {
+        if (cancelled) return;
         const newName = input.value.trim();
-        if (newName && newName !== oldName && !state.habits.includes(newName)) {
-          const idx = state.habits.indexOf(oldName);
-          if (idx !== -1) state.habits[idx] = newName;
-          for (const date of Object.keys(state.habitLog)) {
-            if (state.habitLog[date][oldName] !== undefined) {
-              state.habitLog[date][newName] = state.habitLog[date][oldName];
-              delete state.habitLog[date][oldName];
+        const idx     = state.habits.findIndex(h => h.name === oldName);
+        if (idx !== -1) {
+          if (newName && newName !== oldName && !state.habits.some((h, i) => i !== idx && h.name === newName)) {
+            state.habits[idx].name = newName;
+            for (const date of Object.keys(state.habitLog)) {
+              if (state.habitLog[date][oldName] !== undefined) {
+                state.habitLog[date][newName] = state.habitLog[date][oldName];
+                delete state.habitLog[date][oldName];
+              }
             }
           }
+          state.habits[idx].freq = selected.size === 7 ? 'daily' : { days: [...selected] };
           save();
         }
         renderAllHabits();
@@ -2053,19 +2129,20 @@ function renderHabitsInto(el) {
       input.addEventListener('blur', commit);
       input.addEventListener('keydown', ke => {
         if (ke.key === 'Enter')  { ke.preventDefault(); input.blur(); }
-        if (ke.key === 'Escape') { renderAllHabits(); }
+        if (ke.key === 'Escape') { cancelled = true; renderAllHabits(); }
       });
     });
   });
 
   el.querySelectorAll('.habit-item .btn-del').forEach(btn => {
     btn.addEventListener('click', () => {
-      const h   = btn.closest('.habit-item').dataset.habit;
-      const idx = state.habits.indexOf(h);
-      state.habits = state.habits.filter(x => x !== h);
+      const name    = btn.closest('.habit-item').dataset.habit;
+      const idx     = state.habits.findIndex(h => h.name === name);
+      const removed = state.habits[idx];
+      state.habits  = state.habits.filter(h => h.name !== name);
       save(); renderAllHabits();
       showUndo('Habit deleted',
-        () => { state.habits.splice(idx, 0, h); save(); renderAllHabits(); },
+        () => { state.habits.splice(idx, 0, removed); save(); renderAllHabits(); },
         () => {}
       );
     });
@@ -2074,8 +2151,8 @@ function renderHabitsInto(el) {
   el.querySelector('.sidebar-add-habit').addEventListener('keydown', e => {
     if (e.key !== 'Enter') return;
     const val = e.target.value.trim();
-    if (!val || state.habits.includes(val)) return;
-    state.habits.push(val);
+    if (!val || state.habits.some(h => h.name === val)) return;
+    state.habits.push({ id: uid(), name: val, freq: 'daily' });
     save(); renderAllHabits();
     el.querySelector('.sidebar-add-habit')?.focus();
   });
@@ -2124,9 +2201,9 @@ function startHabitDrag(startEvent, itemEl) {
     }
 
     const name = itemEl.dataset.habit;
-    const oldIdx = state.habits.indexOf(name);
-    state.habits.splice(oldIdx, 1);
-    state.habits.splice(newIdx, 0, name);
+    const oldIdx = state.habits.findIndex(h => h.name === name);
+    const [moved] = state.habits.splice(oldIdx, 1);
+    state.habits.splice(newIdx, 0, moved);
 
     itemEl.style.cssText = '';
     itemEl.classList.remove('habit-dragging');
