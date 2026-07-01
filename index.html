@@ -644,6 +644,44 @@
     .grocery-item .btn-del { font-size: 18px; }
     .grocery-item:hover .btn-del { opacity: 1; }
 
+    /* Can Cook panel */
+    #recipes-trigger { margin-top: 22px; }
+
+    .recipe-item {
+      padding: 12px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+    .recipe-item:first-child { border-top: 1px solid var(--border); }
+    .recipe-item-row { display: flex; align-items: center; gap: 12px; }
+    .recipe-name {
+      flex: 1;
+      font-size: 14px;
+      line-height: 1.5;
+      cursor: pointer;
+    }
+    .recipe-item .btn-del { font-size: 18px; }
+    .recipe-item:hover .btn-del { opacity: 1; }
+    .recipe-note {
+      font-size: 11px;
+      color: var(--faint);
+      margin-top: 3px;
+      line-height: 1.4;
+      cursor: pointer;
+    }
+    .recipe-note-edit {
+      display: block;
+      width: 100%;
+      border: none;
+      background: none;
+      font-size: 11px;
+      font-family: inherit;
+      color: var(--text);
+      border-bottom: 1px solid var(--accent);
+      padding: 3px 0 0;
+      outline: none;
+      margin-top: 3px;
+    }
+
     /* Sidebar habits */
     .sidebar-section-label {
       font-size: 10px;
@@ -1350,6 +1388,8 @@
   <div id="projects-sidebar-list"></div>
   <button class="projects-trigger" id="groceries-trigger">Groceries</button>
   <div id="groceries-sidebar-list"></div>
+  <button class="projects-trigger" id="recipes-trigger">Can Cook</button>
+  <div id="recipes-sidebar-list"></div>
   <div class="sidebar-section-label">Habits</div>
   <div id="sidebar-habits"></div>
 </div>
@@ -1383,6 +1423,19 @@
     <button class="grocery-add-btn" id="grocery-add-btn">Add</button>
   </div>
   <div class="projects-list" id="grocery-list"></div>
+</div>
+
+<div class="projects-backdrop" id="recipes-backdrop"></div>
+<div class="projects-panel" id="recipes-panel">
+  <div class="projects-header">
+    <span class="projects-title">Can Cook</span>
+    <button class="projects-close" id="recipes-close">×</button>
+  </div>
+  <div class="projects-list" id="recipes-list"></div>
+  <div class="projects-add">
+    <div class="add-icon"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 0V10M0 5H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+    <input type="text" id="recipes-input" placeholder="Add a dish…" autocomplete="off" />
+  </div>
 </div>
 
 <div class="pomo" id="pomo">
@@ -1608,7 +1661,7 @@ const DEFAULTS = { todos: {}, habitLog: {}, habits: [
   { id: 'h-exercise', name: 'Exercise', freq: 'daily' },
   { id: 'h-read',     name: 'Read',     freq: 'daily' },
   { id: 'h-meditate', name: 'Meditate', freq: 'daily' },
-], deletedIds: [], projects: [], cards: [], whyLog: {}, pomoLog: {}, groceries: { walmart: [], tt: [], costco: [] } };
+], deletedIds: [], projects: [], cards: [], whyLog: {}, pomoLog: {}, groceries: { walmart: [], tt: [], costco: [] }, recipes: [] };
 const state = { ...DEFAULTS, deletedIds: [] };
 
 function absorb(incoming) {
@@ -2594,7 +2647,7 @@ let groceryStore = 'walmart'; // declared before init IIFE — renderGroceries()
   const cached = localStorage.getItem(CACHE_KEY);
   if (cached) {
     try { absorb(JSON.parse(cached)); } catch {}
-    render(); renderWhy(); renderProjects(); renderGroceries(); renderGroceriesPreview(); renderProjectsPreview(); renderHabitsSidebar(); renderCards();
+    render(); renderWhy(); renderProjects(); renderGroceries(); renderGroceriesPreview(); renderProjectsPreview(); renderRecipesPreview(); renderHabitsSidebar(); renderCards();
     syncStatus('synced');
   } else {
     // No cache — show skeleton until remote loads
@@ -2622,7 +2675,7 @@ let groceryStore = 'walmart'; // declared before init IIFE — renderGroceries()
       const active = document.activeElement;
       const isTyping = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
       const doRender = () => {
-        render(); renderWhy(); renderProjects(); renderGroceries(); renderGroceriesPreview(); renderProjectsPreview(); renderAllHabits(); renderCards();
+        render(); renderWhy(); renderProjects(); renderGroceries(); renderGroceriesPreview(); renderProjectsPreview(); renderRecipesPreview(); renderAllHabits(); renderCards();
       };
       if (isTyping) {
         active.addEventListener('blur', doRender, { once: true });
@@ -2630,7 +2683,7 @@ let groceryStore = 'walmart'; // declared before init IIFE — renderGroceries()
         doRender();
       }
     } else if (!cached) {
-      render(); renderWhy(); renderProjects(); renderGroceries(); renderGroceriesPreview(); renderProjectsPreview(); renderAllHabits(); renderCards();
+      render(); renderWhy(); renderProjects(); renderGroceries(); renderGroceriesPreview(); renderProjectsPreview(); renderRecipesPreview(); renderAllHabits(); renderCards();
     }
   } catch (e) {
     console.warn('JSONBin fetch failed:', e);
@@ -2647,7 +2700,7 @@ window.addEventListener('pageshow', e => {
   binFetch().then(remote => {
     if (Array.isArray(remote.habits) || remote.todos) absorb(remote);
     updateCache();
-    render(); renderWhy(); renderProjects(); renderGroceries(); renderGroceriesPreview(); renderProjectsPreview(); renderHabitsSidebar(); renderCards();
+    render(); renderWhy(); renderProjects(); renderGroceries(); renderGroceriesPreview(); renderProjectsPreview(); renderRecipesPreview(); renderHabitsSidebar(); renderCards();
   }).catch(() => {}).finally(() => {
     stateReady = true;
     carryOver();
@@ -2913,7 +2966,7 @@ function renderProjects() {
 }
 
 function openProjects() {
-  closeGroceries();
+  closeGroceries(); closeRecipes();
   document.getElementById('projects-panel').classList.add('open');
   document.getElementById('projects-backdrop').classList.add('open');
   document.getElementById('projects-input').focus();
@@ -2998,7 +3051,7 @@ function addGroceryItem() {
 }
 
 function openGroceries() {
-  closeProjects();
+  closeProjects(); closeRecipes();
   renderGroceries();
   document.getElementById('groceries-panel').classList.add('open');
   document.getElementById('groceries-backdrop').classList.add('open');
@@ -3023,6 +3076,101 @@ document.getElementById('grocery-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') addGroceryItem();
 });
 document.getElementById('grocery-add-btn').addEventListener('click', addGroceryItem);
+
+// ── Can Cook (recipes) ───────────────────────────────────────────
+
+function renderRecipesPreview() {
+  const el = document.getElementById('recipes-sidebar-list');
+  const recipes = state.recipes || [];
+  el.innerHTML = recipes.length
+    ? recipes.map(r => `<div class="project-sidebar-item">${esc(r.name)}</div>`).join('')
+    : `<p style="font-size:11px;color:var(--faint);padding:2px 0 0;">Nothing here</p>`;
+  el.querySelectorAll('.project-sidebar-item').forEach(item => item.addEventListener('click', openRecipes));
+}
+
+function renderRecipes() {
+  const list    = document.getElementById('recipes-list');
+  const recipes = state.recipes || [];
+  list.innerHTML = recipes.length
+    ? recipes.map(r => `
+      <div class="recipe-item" data-id="${esc(r.id)}">
+        <div class="recipe-item-row">
+          <span class="recipe-name">${esc(r.name)}</span>
+          <button class="btn-del" title="Remove" tabindex="-1">×</button>
+        </div>
+        ${r.note ? `<div class="recipe-note">${esc(r.note)}</div>` : ''}
+      </div>`).join('')
+    : `<p style="padding:24px;font-size:13px;color:var(--faint);text-align:center">No dishes yet.<br>Add one below.</p>`;
+
+  list.querySelectorAll('.recipe-item').forEach(el => {
+    const id = el.dataset.id;
+
+    const startNoteEdit = () => {
+      if (el.querySelector('.recipe-note-edit')) return;
+      const r = (state.recipes || []).find(x => x.id === id);
+      if (!r) return;
+      const noteEl = el.querySelector('.recipe-note');
+      const input = document.createElement('input');
+      input.className = 'recipe-note-edit';
+      input.placeholder = 'Add a short note…';
+      input.value = r.note || '';
+      if (noteEl) noteEl.replaceWith(input); else el.appendChild(input);
+      input.focus();
+      if (r.note) input.select();
+
+      let cancelled = false;
+      const commit = () => {
+        if (cancelled) return;
+        r.note = input.value.trim();
+        save(); renderRecipes();
+      };
+      input.addEventListener('blur', commit);
+      input.addEventListener('keydown', ke => {
+        if (ke.key === 'Enter')  { ke.preventDefault(); input.blur(); }
+        if (ke.key === 'Escape') { cancelled = true; renderRecipes(); }
+      });
+    };
+
+    el.querySelector('.recipe-name').addEventListener('click', startNoteEdit);
+    el.querySelector('.recipe-note')?.addEventListener('click', startNoteEdit);
+
+    el.querySelector('.btn-del').addEventListener('click', () => {
+      const idx     = state.recipes.findIndex(x => x.id === id);
+      const removed = state.recipes[idx];
+      state.recipes = state.recipes.filter(x => x.id !== id);
+      save(); renderRecipes(); renderRecipesPreview();
+      showUndo('Dish deleted',
+        () => { state.recipes.splice(idx, 0, removed); save(); renderRecipes(); renderRecipesPreview(); },
+        () => {}
+      );
+    });
+  });
+}
+
+function openRecipes() {
+  closeProjects(); closeGroceries();
+  renderRecipes();
+  document.getElementById('recipes-panel').classList.add('open');
+  document.getElementById('recipes-backdrop').classList.add('open');
+  document.getElementById('recipes-input').focus();
+}
+function closeRecipes() {
+  document.getElementById('recipes-panel').classList.remove('open');
+  document.getElementById('recipes-backdrop').classList.remove('open');
+}
+
+document.getElementById('recipes-trigger').addEventListener('click', openRecipes);
+document.getElementById('recipes-close').addEventListener('click', closeRecipes);
+document.getElementById('recipes-backdrop').addEventListener('click', closeRecipes);
+document.getElementById('recipes-input').addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  const val = e.target.value.trim();
+  if (!val) return;
+  if (!state.recipes) state.recipes = [];
+  state.recipes.push({ id: 'r' + Date.now(), name: val, note: '' });
+  save(); renderRecipes(); renderRecipesPreview();
+  e.target.value = '';
+});
 
 (function() {
   const el = document.getElementById('daily-why');
