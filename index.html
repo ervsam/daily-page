@@ -65,16 +65,16 @@
     }
 
     .progress-wrap {
-      height: 2px;
+      height: 4px;
       background: var(--border);
-      border-radius: 1px;
+      border-radius: 2px;
       margin-bottom: 20px;
       overflow: hidden;
     }
     .progress-bar {
       height: 100%;
       background: var(--accent);
-      border-radius: 1px;
+      border-radius: 2px;
       transition: width 0.4s ease;
     }
 
@@ -183,6 +183,46 @@
       font-family: inherit;
     }
     .add-input::placeholder { color: var(--faint); }
+    .syntax-panel {
+      display: none;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-top: none;
+      border-radius: 0 0 8px 8px;
+      padding: 10px 14px 12px;
+      margin: 0 0 2px;
+    }
+    .syntax-panel.visible { display: block; }
+    .syntax-panel-label {
+      font: 600 9px/1 system-ui, sans-serif;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .syntax-panel-chips {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 6px;
+    }
+    .syntax-chip {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 7px 9px;
+      cursor: pointer;
+      transition: border-color 0.12s;
+    }
+    .syntax-chip:hover { border-color: var(--accent); }
+    .syntax-chip-key {
+      font: 600 11px/1 ui-monospace, Menlo, monospace;
+      color: var(--accent);
+      margin-bottom: 3px;
+    }
+    .syntax-chip-desc {
+      font: 400 10px/1.3 system-ui, sans-serif;
+      color: var(--muted);
+    }
     .add-hint {
       font-size: 10px;
       color: var(--faint);
@@ -224,6 +264,7 @@
     .check-square.done .check-icon { display: block; }
 
     .date-nav {
+      position: relative;
       display: grid;
       grid-template-columns: 40px 1fr 40px;
       align-items: center;
@@ -232,6 +273,26 @@
     .date-nav .date-label { margin-bottom: 0; cursor: default; text-align: center; }
     .date-nav .date-label:not(.is-today) { cursor: pointer; }
     .date-nav .date-label:not(.is-today):hover { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+    .focus-btn {
+      position: absolute;
+      right: -52px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      font: 600 9px/1 system-ui, sans-serif;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--faint);
+      cursor: pointer;
+      padding: 4px 6px;
+      border-radius: 4px;
+      transition: color 0.15s, background 0.15s;
+      white-space: nowrap;
+    }
+    .focus-btn:hover { color: var(--text); background: var(--border); }
+    body.focus-mode .focus-btn { color: var(--accent); }
+    @media (max-width: 960px) { .focus-btn { display: none; } }
 
     .nav-btn {
       background: none;
@@ -717,7 +778,20 @@
       border-bottom: 1px solid var(--border);
     }
     .sidebar-habit-dots { display: flex; gap: 3px; }
-    .sidebar-habit-dots .dot { width: 5px; height: 5px; }
+    .sidebar-habit-dots .dot { width: 8px; height: 8px; }
+    .habits-day-header {
+      display: flex;
+      gap: 3px;
+      padding: 4px 0 4px 42px;
+      border-top: 1px solid var(--border);
+    }
+    .habits-day-header span {
+      width: 8px;
+      text-align: center;
+      font: 700 8px/1 system-ui, sans-serif;
+      color: var(--faint);
+    }
+    .habits-day-header span:last-child { color: var(--accent); }
 
     .sidebar-streak {
       font-size: 10px;
@@ -884,19 +958,35 @@
     .cards-add-btn:hover { border-color: var(--muted); color: var(--muted); }
 
     /* Daily why */
+    .daily-why-wrap {
+      position: relative;
+      text-align: center;
+      margin-bottom: 36px;
+    }
     .daily-why {
       text-align: center;
       font-style: italic;
       font-size: 0.9rem;
       color: var(--muted);
-      margin-bottom: 36px;
       line-height: 1.5;
       cursor: text;
       outline: none;
-      display: block;
+      display: inline-block;
       transition: opacity 0.2s;
     }
     .daily-why.editing { border-bottom: 1px solid var(--accent); padding-bottom: 2px; }
+    .daily-why-pencil {
+      display: none;
+      position: absolute;
+      right: 0; top: 50%;
+      transform: translateY(-50%);
+      background: none; border: none;
+      color: var(--faint); font-size: 13px;
+      cursor: pointer; padding: 2px 4px;
+      transition: color 0.12s;
+    }
+    .daily-why-wrap:hover .daily-why-pencil { display: block; }
+    .daily-why-pencil:hover { color: var(--muted); }
 
     /* Sync dot */
     .sync-dot {
@@ -946,9 +1036,26 @@
     .mob-pomo-wrap {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
       margin-left: auto;
     }
+    .mob-mode-btns {
+      display: flex;
+      gap: 2px;
+    }
+    .mob-mode-btn {
+      background: none;
+      border: none;
+      font: 600 9px/1 system-ui, sans-serif;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--faint);
+      cursor: pointer;
+      padding: 4px 6px;
+      border-radius: 4px;
+      transition: color 0.12s, background 0.12s;
+    }
+    .mob-mode-btn.active { color: var(--text); background: var(--border); }
     .mob-pomo-time {
       font-size: 15px;
       font-weight: 300;
@@ -1032,7 +1139,7 @@
       flex: 1;
     }
     /* Habit rows inside the sheet use same classes but slightly larger dots */
-    .sheet-content .sidebar-habit-dots .dot { width: 6px; height: 6px; }
+    .sheet-content .sidebar-habit-dots .dot { width: 9px; height: 9px; }
     .sheet-content .sidebar-habit-name { font-size: 13px; }
     .sheet-content .sidebar-add-habit { font-size: 13px; }
 
@@ -1211,23 +1318,43 @@
     .week-sparkline {
       display: flex;
       justify-content: center;
-      gap: 7px;
-      margin-bottom: 32px;
+      gap: 6px;
+      align-items: flex-end;
+      margin-bottom: 28px;
     }
-    .spark-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      border: 1.5px solid var(--faint);
+    .spark-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
       cursor: pointer;
-      transition: transform 0.12s;
-      flex-shrink: 0;
+      width: 24px;
+      transition: opacity 0.12s;
     }
-    .spark-dot:hover { transform: scale(1.3); }
-    .spark-dot.spark-none    { background: transparent; }
-    .spark-dot.spark-partial { background: var(--faint); border-color: var(--faint); }
-    .spark-dot.spark-full    { background: var(--accent); border-color: var(--accent); }
-    .spark-dot.spark-active  { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .spark-col:hover { opacity: 0.75; }
+    .spark-bar-wrap {
+      width: 6px;
+      height: 28px;
+      background: var(--border);
+      border-radius: 3px;
+      display: flex;
+      align-items: flex-end;
+      overflow: hidden;
+    }
+    .spark-bar-fill {
+      width: 100%;
+      background: var(--faint);
+      border-radius: 3px;
+      transition: height 0.4s ease;
+    }
+    .spark-col.spark-full .spark-bar-fill    { background: var(--accent); }
+    .spark-col.spark-partial .spark-bar-fill { background: var(--accent); opacity: 0.5; }
+    .spark-day-label {
+      font: 600 9px/1 system-ui, sans-serif;
+      color: var(--faint);
+      letter-spacing: 0.02em;
+    }
+    .spark-col.spark-active .spark-day-label { color: var(--accent); font-weight: 700; }
 
     /* ── Pomo task + log ─────────────────────────────────────────────── */
     .pomo-task {
@@ -1470,11 +1597,15 @@
 </div>
 
 <div class="page">
-  <p class="daily-why" id="daily-why" title="Click to edit"></p>
+  <div class="daily-why-wrap">
+    <p class="daily-why" id="daily-why"></p>
+    <button class="daily-why-pencil" id="daily-why-pencil" title="Edit intention" aria-label="Edit daily intention">✎</button>
+  </div>
   <div class="date-nav">
     <button class="nav-btn" id="btn-prev">‹</button>
     <div class="date-label" id="date-label" title="Go to today"></div>
     <button class="nav-btn" id="btn-next">›</button>
+    <button class="focus-btn" id="focus-btn" title="Toggle focus mode (F)">Focus</button>
   </div>
 
   <div id="week-sparkline" class="week-sparkline"></div>
@@ -1492,7 +1623,23 @@
       <div class="add-icon"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 0V10M0 5H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div>
       <input class="add-input" id="add-input" type="text" placeholder="Add a task…" autocomplete="off" />
     </div>
-    <p class="add-hint" id="add-hint"><span class="hint-tag" data-insert="@tomorrow">@tomorrow</span> · <span class="hint-tag" data-insert="[30]">[30]</span> · <span class="hint-tag" data-insert="#project">#project</span></p>
+    <div class="syntax-panel" id="syntax-panel">
+      <div class="syntax-panel-label">Shortcuts — click to insert</div>
+      <div class="syntax-panel-chips">
+        <div class="syntax-chip" data-insert="@tomorrow">
+          <div class="syntax-chip-key">@tomorrow</div>
+          <div class="syntax-chip-desc">Schedule for tomorrow</div>
+        </div>
+        <div class="syntax-chip" data-insert="[30]">
+          <div class="syntax-chip-key">[30]</div>
+          <div class="syntax-chip-desc">Estimate 30 min</div>
+        </div>
+        <div class="syntax-chip" data-insert="#project">
+          <div class="syntax-chip-key">#project</div>
+          <div class="syntax-chip-desc">Tag to a project</div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="sep"></div>
@@ -1509,6 +1656,11 @@
   <button class="mob-tab-btn" id="mob-habits-btn">Habits</button>
   <button class="mob-tab-btn" id="mob-groceries-btn">Groceries</button>
   <div class="mob-pomo-wrap">
+    <div class="mob-mode-btns" id="mob-mode-btns">
+      <button class="mob-mode-btn active" data-mode="focus">Focus</button>
+      <button class="mob-mode-btn" data-mode="short">Short</button>
+      <button class="mob-mode-btn" data-mode="long">Long</button>
+    </div>
     <span class="mob-pomo-time" id="mob-pomo-time">25:00</span>
     <button class="mob-pomo-btn" id="mob-pomo-btn">▶</button>
   </div>
@@ -1795,24 +1947,32 @@ function updateTabTitle() {
 function renderSparkline() {
   const el = document.getElementById('week-sparkline');
   if (!el) return;
+  const LABELS = ['M','T','W','T','F','S','S'];
   const days = [];
   for (let i = 6; i >= 0; i--) {
     const d  = dateStr(i);
     const ts = state.todos[d] || [];
-    days.push({ d, total: ts.length, done: ts.filter(t => t.done).length });
+    const parts = d.split('-').map(Number);
+    const dow = new Date(parts[0], parts[1]-1, parts[2]).getDay();
+    const labelIdx = (dow + 6) % 7; // Sun=0 → index 6 (S), Mon=1 → index 0 (M)
+    days.push({ d, total: ts.length, done: ts.filter(t => t.done).length, label: LABELS[labelIdx] });
   }
-  el.innerHTML = days.map(({ d, total, done }) => {
-    let cls = 'spark-dot';
-    if (d === viewDate)        cls += ' spark-active';
-    if (total === 0)           cls += ' spark-none';
-    else if (done === total)   cls += ' spark-full';
-    else if (done > 0)         cls += ' spark-partial';
-    else                       cls += ' spark-none';
-    return `<div class="${cls}" data-date="${d}" title="${esc(formatLabel(d))}: ${total > 0 ? done + '/' + total : 'no tasks'}"></div>`;
+  el.innerHTML = days.map(({ d, total, done, label }) => {
+    const pct  = total > 0 ? Math.round((done / total) * 100) : 0;
+    const barH = total > 0 ? Math.max(3, Math.round(pct * 0.28)) : 0;
+    let cls = 'spark-col';
+    if (d === viewDate)      cls += ' spark-active';
+    if (total === 0)         cls += ' spark-none';
+    else if (done === total) cls += ' spark-full';
+    else if (done > 0)       cls += ' spark-partial';
+    return `<div class="${cls}" data-date="${d}" title="${esc(formatLabel(d))}: ${total > 0 ? done + '/' + total + ' done' : 'no tasks'}">
+      <div class="spark-bar-wrap"><div class="spark-bar-fill" style="height:${barH}px"></div></div>
+      <div class="spark-day-label">${label}</div>
+    </div>`;
   }).join('');
-  el.querySelectorAll('.spark-dot').forEach(dot => {
-    dot.addEventListener('click', () => {
-      const d = dot.dataset.date;
+  el.querySelectorAll('.spark-col').forEach(col => {
+    col.addEventListener('click', () => {
+      const d = col.dataset.date;
       if (d && d <= TODAY && d >= MIN_DATE) { viewDate = d; render(); renderWhy(); }
     });
   });
@@ -2067,8 +2227,8 @@ function render() {
   });
 
   document.getElementById('add-row').style.display = isPast ? 'none' : 'flex';
-  const addHint = document.getElementById('add-hint');
-  if (addHint) addHint.style.display = isPast ? 'none' : '';
+  const syntaxPanelEl = document.getElementById('syntax-panel');
+  if (syntaxPanelEl) syntaxPanelEl.style.display = isPast ? 'none' : '';
   renderSparkline();
   updateTabTitle();
 }
@@ -2081,7 +2241,10 @@ const DAY_LABELS  = ['M','T','W','T','F','S','S'];
 function renderHabitsInto(el) {
   if (!el) return;
   const HISTORY_DAYS = 7;
-  el.innerHTML = state.habits.map(h => {
+  const _habitHeader = state.habits.length > 0
+    ? `<div class="habits-day-header">${DAY_LABELS.map(l => `<span>${l}</span>`).join('')}</div>`
+    : '';
+  el.innerHTML = _habitHeader + state.habits.map(h => {
     const name      = h.name;
     const todayDone = state.habitLog[TODAY]?.[name] || false;
     const s         = calcStreak(h);
@@ -2718,7 +2881,7 @@ function pomoCalcRemaining() {
 }
 
 function pomoRender() {
-  document.querySelectorAll('.pomo-mode-btn').forEach(btn => {
+  document.querySelectorAll('.pomo-mode-btn, .mob-mode-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.mode === POMO.mode);
   });
   const timeEl = document.getElementById('pomo-time');
@@ -2903,6 +3066,12 @@ document.querySelectorAll('.pomo-mode-btn').forEach(btn => {
     pomoSaveState();
     pomoRender();
     render();
+  });
+});
+
+document.querySelectorAll('.mob-mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelector(`.pomo-mode-btn[data-mode="${btn.dataset.mode}"]`)?.click();
   });
 });
 
@@ -3198,6 +3367,11 @@ document.getElementById('recipes-input').addEventListener('keydown', e => {
   });
 })();
 
+// Daily why pencil affordance
+document.getElementById('daily-why-pencil')?.addEventListener('click', () => {
+  document.getElementById('daily-why').click();
+});
+
 // Fix 7: mobile sheet open/close
 function openMobHabits() {
   renderHabitsInto(document.getElementById('mob-habits-content'));
@@ -3230,6 +3404,11 @@ document.addEventListener('keydown', e => {
 
 document.getElementById('focus-exit-btn').addEventListener('click', () => {
   document.body.classList.remove('focus-mode');
+});
+
+// Focus mode button
+document.getElementById('focus-btn')?.addEventListener('click', () => {
+  document.body.classList.toggle('focus-mode');
 });
 
 // ── Shared @tomorrow / [N] / #project token parsing ────────────────
@@ -3304,7 +3483,21 @@ function wireHintTagClicks(hintEl, targetInput) {
 
 // ── Add todo ──────────────────────────────────────────────────────
 
-wireHintTagClicks(document.getElementById('add-hint'), document.getElementById('add-input'));
+// Syntax panel — show on focus, hide on blur, chips insert tokens
+(function() {
+  const input = document.getElementById('add-input');
+  const panel = document.getElementById('syntax-panel');
+  if (!input || !panel) return;
+  input.addEventListener('focus', () => panel.classList.add('visible'));
+  input.addEventListener('blur',  () => setTimeout(() => panel.classList.remove('visible'), 160));
+  panel.querySelectorAll('.syntax-chip').forEach(chip => {
+    chip.addEventListener('mousedown', e => e.preventDefault());
+    chip.addEventListener('click', () => {
+      insertAtCursor(input, chip.dataset.insert + ' ');
+      input.focus();
+    });
+  });
+})();
 
 document.getElementById('add-input').addEventListener('keydown', e => {
   if (e.key !== 'Enter') return;
