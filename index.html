@@ -791,7 +791,7 @@
       font: 700 8px/1 system-ui, sans-serif;
       color: var(--faint);
     }
-    .habits-day-header span:last-child { color: var(--accent); }
+    .habits-day-header span.today { color: var(--accent); }
 
     .sidebar-streak {
       font-size: 10px;
@@ -2241,8 +2241,10 @@ const DAY_LABELS  = ['M','T','W','T','F','S','S'];
 function renderHabitsInto(el) {
   if (!el) return;
   const HISTORY_DAYS = 7;
+  const [ty, tm, td] = TODAY.split('-').map(Number);
+  const todayDow = (new Date(ty, tm - 1, td).getDay() + 6) % 7; // Mon=0 ... Sun=6
   const _habitHeader = state.habits.length > 0
-    ? `<div class="habits-day-header">${DAY_LABELS.map(l => `<span>${l}</span>`).join('')}</div>`
+    ? `<div class="habits-day-header">${DAY_LABELS.map((l, i) => `<span${i === todayDow ? ' class="today"' : ''}>${l}</span>`).join('')}</div>`
     : '';
   el.innerHTML = _habitHeader + state.habits.map(h => {
     const name      = h.name;
