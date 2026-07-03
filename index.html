@@ -509,6 +509,21 @@
     }
     .projects-panel.open { transform: translateX(0); }
 
+    /* Mobile: side panel becomes a bottom sheet, matching .mobile-sheet */
+    @media (max-width: 960px) {
+      .projects-panel {
+        top: auto; left: 0; right: 0; bottom: 0;
+        height: auto;
+        max-height: 72vh;
+        width: auto;
+        border-right: none;
+        border-top: 1px solid var(--border);
+        border-radius: 16px 16px 0 0;
+        transform: translateY(100%);
+      }
+      .projects-panel.open { transform: translateY(0); }
+    }
+
     .projects-header {
       display: flex;
       align-items: center;
@@ -859,6 +874,7 @@
       grid-auto-rows: minmax(142px, auto);
       gap: 10px;
     }
+    @media (max-width: 960px) { .cards-grid { grid-template-columns: repeat(2, 1fr); } }
     .card {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -1020,29 +1036,40 @@
     .mob-tab-btn {
       background: none;
       border: none;
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
       color: var(--muted);
       cursor: pointer;
       padding: 6px 10px;
       border-radius: 6px;
       transition: all 0.15s;
       font-family: inherit;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
     .mob-tab-btn:hover { color: var(--text); background: var(--border); }
 
     .mob-pomo-wrap {
+      position: relative;
       display: flex;
       align-items: center;
       gap: 6px;
       margin-left: auto;
     }
+    /* Mode switcher collapses into a popover above the bar; opened by tapping the time */
     .mob-mode-btns {
-      display: flex;
+      display: none;
+      position: absolute;
+      bottom: 100%;
+      right: 0;
+      margin-bottom: 8px;
       gap: 2px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
     }
+    .mob-mode-btns.open { display: flex; }
     .mob-mode-btn {
       background: none;
       border: none;
@@ -1054,14 +1081,20 @@
       padding: 4px 6px;
       border-radius: 4px;
       transition: color 0.12s, background 0.12s;
+      white-space: nowrap;
     }
     .mob-mode-btn.active { color: var(--text); background: var(--border); }
     .mob-pomo-time {
+      background: none;
+      border: none;
+      padding: 0;
+      font-family: inherit;
       font-size: 15px;
       font-weight: 300;
       font-variant-numeric: tabular-nums;
       color: var(--text);
       letter-spacing: 0.02em;
+      cursor: pointer;
     }
     .mob-pomo-time.running { color: var(--accent); }
 
@@ -1652,16 +1685,22 @@
 
 <!-- Mobile bottom bar -->
 <div class="mobile-bar">
-  <button class="mob-tab-btn" id="mob-proj-btn">Projects</button>
-  <button class="mob-tab-btn" id="mob-habits-btn">Habits</button>
-  <button class="mob-tab-btn" id="mob-groceries-btn">Groceries</button>
+  <button class="mob-tab-btn" id="mob-proj-btn" title="Projects" aria-label="Projects">
+    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><rect x="2" y="4" width="14" height="1.5" rx="0.75" fill="currentColor"/><rect x="2" y="8.5" width="14" height="1.5" rx="0.75" fill="currentColor"/><rect x="2" y="13" width="9" height="1.5" rx="0.75" fill="currentColor"/></svg>
+  </button>
+  <button class="mob-tab-btn" id="mob-habits-btn" title="Habits" aria-label="Habits">
+    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="7" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M6 9l2 2 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+  <button class="mob-tab-btn" id="mob-groceries-btn" title="Groceries" aria-label="Groceries">
+    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M3 6h12l-1.2 8H4.2L3 6z" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linejoin="round"/><path d="M6 6l1-3h4l1 3" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
   <div class="mob-pomo-wrap">
     <div class="mob-mode-btns" id="mob-mode-btns">
       <button class="mob-mode-btn active" data-mode="focus">Focus</button>
       <button class="mob-mode-btn" data-mode="short">Short</button>
       <button class="mob-mode-btn" data-mode="long">Long</button>
     </div>
-    <span class="mob-pomo-time" id="mob-pomo-time">25:00</span>
+    <button class="mob-pomo-time" id="mob-pomo-time" aria-label="Toggle timer mode selector" aria-expanded="false">25:00</button>
     <button class="mob-pomo-btn" id="mob-pomo-btn">▶</button>
   </div>
 </div>
@@ -3075,10 +3114,30 @@ document.querySelectorAll('.pomo-mode-btn').forEach(btn => {
   });
 });
 
+function closeMobModePicker() {
+  document.getElementById('mob-mode-btns').classList.remove('open');
+  document.getElementById('mob-pomo-time').setAttribute('aria-expanded', 'false');
+}
+
 document.querySelectorAll('.mob-mode-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelector(`.pomo-mode-btn[data-mode="${btn.dataset.mode}"]`)?.click();
+    closeMobModePicker();
   });
+});
+
+document.getElementById('mob-pomo-time').addEventListener('click', e => {
+  e.stopPropagation();
+  const picker = document.getElementById('mob-mode-btns');
+  const nowOpen = !picker.classList.contains('open');
+  picker.classList.toggle('open', nowOpen);
+  e.currentTarget.setAttribute('aria-expanded', String(nowOpen));
+});
+document.addEventListener('click', e => {
+  const picker = document.getElementById('mob-mode-btns');
+  if (picker.classList.contains('open') && !picker.contains(e.target) && e.target.id !== 'mob-pomo-time') {
+    closeMobModePicker();
+  }
 });
 
 document.getElementById('pomo-settings-btn').addEventListener('click', () => {
@@ -3141,7 +3200,7 @@ function renderProjects() {
 }
 
 function openProjects() {
-  closeGroceries(); closeRecipes();
+  closeGroceries(); closeRecipes(); closeMobHabits();
   document.getElementById('projects-panel').classList.add('open');
   document.getElementById('projects-backdrop').classList.add('open');
   document.getElementById('projects-input').focus();
@@ -3226,7 +3285,7 @@ function addGroceryItem() {
 }
 
 function openGroceries() {
-  closeProjects(); closeRecipes();
+  closeProjects(); closeRecipes(); closeMobHabits();
   renderGroceries();
   document.getElementById('groceries-panel').classList.add('open');
   document.getElementById('groceries-backdrop').classList.add('open');
@@ -3323,7 +3382,7 @@ function renderRecipes() {
 }
 
 function openRecipes() {
-  closeProjects(); closeGroceries();
+  closeProjects(); closeGroceries(); closeMobHabits();
   renderRecipes();
   document.getElementById('recipes-panel').classList.add('open');
   document.getElementById('recipes-backdrop').classList.add('open');
@@ -3380,6 +3439,7 @@ document.getElementById('daily-why-pencil')?.addEventListener('click', () => {
 
 // Fix 7: mobile sheet open/close
 function openMobHabits() {
+  closeProjects(); closeGroceries(); closeRecipes();
   renderHabitsInto(document.getElementById('mob-habits-content'));
   document.getElementById('mob-habits-sheet').classList.add('open');
   document.getElementById('sheet-backdrop').classList.add('open');
@@ -3396,7 +3456,7 @@ document.getElementById('sheet-backdrop').addEventListener('click', closeMobHabi
 
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
-    closeProjects(); closeMobHabits(); closeGroceries();
+    closeProjects(); closeMobHabits(); closeGroceries(); closeMobModePicker();
     document.body.classList.remove('focus-mode');
   }
   if (e.key === 'n' && !e.target.matches('input,textarea,[contenteditable]')) {
