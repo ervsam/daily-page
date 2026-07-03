@@ -2241,10 +2241,14 @@ const DAY_LABELS  = ['M','T','W','T','F','S','S'];
 function renderHabitsInto(el) {
   if (!el) return;
   const HISTORY_DAYS = 7;
-  const [ty, tm, td] = TODAY.split('-').map(Number);
-  const todayDow = (new Date(ty, tm - 1, td).getDay() + 6) % 7; // Mon=0 ... Sun=6
   const _habitHeader = state.habits.length > 0
-    ? `<div class="habits-day-header">${DAY_LABELS.map((l, i) => `<span${i === todayDow ? ' class="today"' : ''}>${l}</span>`).join('')}</div>`
+    ? `<div class="habits-day-header">${Array.from({ length: HISTORY_DAYS }, (_, i) => {
+        const d = dateStr(HISTORY_DAYS - 1 - i);
+        const [y, m, day] = d.split('-').map(Number);
+        const dow   = (new Date(y, m - 1, day).getDay() + 6) % 7; // Mon=0 ... Sun=6
+        const isToday = (i === HISTORY_DAYS - 1);
+        return `<span${isToday ? ' class="today"' : ''}>${DAY_LABELS[dow]}</span>`;
+      }).join('')}</div>`
     : '';
   el.innerHTML = _habitHeader + state.habits.map(h => {
     const name      = h.name;
