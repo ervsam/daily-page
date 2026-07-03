@@ -2722,6 +2722,16 @@ const DRAG_HOLD_MS        = 250;
 const DRAG_HOLD_TOLERANCE = 8;
 
 function wireDragHandle(handle, startDrag, shouldSkip) {
+  // Safari's coupling between Pointer Events and the underlying Touch Events
+  // is looser than Chrome's -- preventDefault() on pointerdown alone does not
+  // reliably stop iOS's native long-press text-selection gesture, which is
+  // tied to touchstart. Must be { passive: false }, since touch listeners
+  // default to passive (making preventDefault a silent no-op) otherwise.
+  handle.addEventListener('touchstart', e => {
+    if (shouldSkip && shouldSkip(e)) return;
+    e.preventDefault();
+  }, { passive: false });
+
   handle.addEventListener('pointerdown', e => {
     if (shouldSkip && shouldSkip(e)) return;
     if (e.button !== undefined && e.button !== 0) return;
