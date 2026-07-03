@@ -1176,6 +1176,18 @@
     .sheet-content .sidebar-habit-name { font-size: 13px; }
     .sheet-content .sidebar-add-habit { font-size: 13px; }
 
+    /* iOS Safari auto-zooms on focus when a field's font-size is under 16px */
+    @media (max-width: 960px) {
+      .projects-add input,
+      .grocery-add input,
+      .grocery-item-text,
+      .sheet-content .sidebar-add-habit,
+      .sidebar-habit-name-edit,
+      .recipe-note-edit {
+        font-size: 16px;
+      }
+    }
+
     /* Todo drag-to-reorder + drag-to-complete */
     .todo-item { transition: box-shadow 0.15s, border-radius 0.15s, background 0.15s; }
     .todo-drag-handle {
