@@ -2733,6 +2733,13 @@ function wireDragHandle(handle, startDrag, shouldSkip) {
       return;
     }
 
+    // Must be synchronous, within this handler, to actually suppress iOS's
+    // native long-press selection/callout gesture. Calling preventDefault()
+    // later inside the setTimeout below is a no-op -- the event has already
+    // been dispatched, so it does nothing and the native gesture wins if the
+    // hold outlasts iOS's own long-press timer.
+    e.preventDefault();
+
     const startX = e.clientX, startY = e.clientY;
     let settled = false;
     const cancel = () => {
@@ -2749,7 +2756,6 @@ function wireDragHandle(handle, startDrag, shouldSkip) {
     const timer = setTimeout(() => {
       if (settled) return;
       cancel();
-      e.preventDefault();
       handle.setPointerCapture(e.pointerId);
       startDrag(e);
     }, DRAG_HOLD_MS);
