@@ -90,6 +90,7 @@
       border-bottom: 1px solid var(--border);
       cursor: pointer;
       user-select: none;
+      -webkit-touch-callout: none;
     }
     .todo-item:first-child { border-top: 1px solid var(--border); }
 
@@ -137,6 +138,8 @@
       padding: 1px 0;
       resize: none;
       overflow: hidden;
+      user-select: text;
+      -webkit-touch-callout: default;
     }
 
     .btn-del {
@@ -885,6 +888,8 @@
       position: relative;
       box-shadow: 0 1px 3px rgba(0,0,0,0.06);
       transition: box-shadow 0.15s;
+      user-select: none;
+      -webkit-touch-callout: none;
     }
     .card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
 
@@ -910,6 +915,7 @@
       color: var(--faint);
       font-size: 14px;
       user-select: none;
+      -webkit-touch-callout: none;
       transition: color 0.15s;
       margin-bottom: 2px;
       position: relative;
@@ -931,6 +937,8 @@
       height: 80px;
       cursor: text;
       overflow-y: auto;
+      user-select: text;
+      -webkit-touch-callout: default;
     }
     .card-text::placeholder { color: var(--faint); }
 
@@ -1084,7 +1092,10 @@
       align-items: center;
       justify-content: center;
       transition: all 0.15s;
+      padding: 0;
     }
+    /* Force even pixel dimensions so flex centering lands on whole pixels, not a half-pixel offset */
+    .mob-pomo-btn svg { width: 10px; height: 12px; }
     .mob-pomo-btn:hover { border-color: var(--accent); color: var(--accent); }
 
     /* Mobile bottom sheet */
@@ -1195,7 +1206,10 @@
     .pomo-fs-time-edit {
       width: 130px;
       text-align: center;
-      font: 200 44px/1 inherit;
+      font-size: 44px;
+      font-weight: 200;
+      line-height: 1;
+      font-family: inherit;
       font-variant-numeric: tabular-nums;
       color: var(--text);
       background: none;
@@ -1299,10 +1313,13 @@
       opacity: 0;
       transition: opacity 0.12s;
       user-select: none;
+      -webkit-touch-callout: none;
       touch-action: none;
     }
     .todo-item:hover .todo-drag-handle { opacity: 1; }
     .todo-drag-handle:active { cursor: grabbing; }
+    /* :hover doesn't reliably reveal the handle on touch, so keep it visible on mobile */
+    @media (max-width: 960px) { .todo-drag-handle { opacity: 1; } }
 
     .todo-item.dragging,
     .todo-item.settling,
@@ -1374,6 +1391,8 @@
       padding: 0 22px 4px 0;
       border-bottom: 1px solid var(--border);
       margin-bottom: 6px;
+      user-select: text;
+      -webkit-touch-callout: default;
     }
     .card-title::placeholder { color: var(--faint); font-weight: 400; }
     .card-title.empty { border-bottom-color: transparent; padding-bottom: 0; margin-bottom: 2px; }
@@ -2492,6 +2511,7 @@ function renderHabitsInto(el) {
         });
       });
 
+      void input.offsetHeight; // force style/layout flush so iOS reads the real font-size before focusing
       input.focus(); input.select();
       let cancelled = false;
       const commit = () => {
@@ -3343,6 +3363,7 @@ document.getElementById('pomo-fs-time').addEventListener('click', function() {
   input.className = 'pomo-fs-time-edit';
   this.textContent = '';
   this.appendChild(input);
+  void input.offsetHeight; // force style/layout flush so iOS reads the real font-size before focusing
   input.focus(); input.select();
 
   let cancelled = false;
@@ -3568,6 +3589,7 @@ function renderRecipes() {
       input.placeholder = 'Add a short note…';
       input.value = r.note || '';
       if (noteEl) noteEl.replaceWith(input); else el.appendChild(input);
+      void input.offsetHeight; // force style/layout flush so iOS reads the real font-size before focusing
       input.focus();
       if (r.note) input.select();
 
