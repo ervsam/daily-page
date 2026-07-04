@@ -1017,16 +1017,26 @@
     /* Sync dot */
     .sync-dot {
       position: fixed;
-      top: 20px;
-      right: 20px;
+      top: 12px;
+      right: 12px;
+      width: 24px;
+      height: 24px;
+      z-index: 50;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .sync-dot::after {
+      content: '';
       width: 6px;
       height: 6px;
       border-radius: 50%;
       transition: background 0.3s;
     }
-    .sync-dot.synced  { background: var(--accent); opacity: 0.4; }
-    .sync-dot.saving  { background: var(--faint); animation: blink 1s infinite; }
-    .sync-dot.error   { background: #e05252; opacity: 0.8; }
+    .sync-dot.synced::after  { background: var(--accent); opacity: 0.4; }
+    .sync-dot.saving::after  { background: var(--faint); animation: blink 1s infinite; }
+    .sync-dot.error::after   { background: #e05252; opacity: 0.8; }
     @keyframes blink { 0%,100% { opacity: 0.2; } 50% { opacity: 1; } }
 
     /* ── Mobile bottom bar ────────────────────────────────────────── */
@@ -1672,7 +1682,7 @@
 </head>
 <body>
 
-<div class="sync-dot saving" id="sync-dot"></div>
+<div class="sync-dot saving" id="sync-dot" title="Tap to refresh" role="button" aria-label="Refresh sync status"></div>
 <div class="sync-error-banner" id="sync-error-banner">
   <span>Save failed — changes may not persist</span>
   <button class="sync-error-retry" id="sync-error-retry">Retry</button>
@@ -3123,19 +3133,46 @@ let groceryStore = 'walmart'; // declared before init IIFE — renderGroceries()
   }
 })();
 
-// On bfcache tab restore, re-fetch remote before allowing any writes
-window.addEventListener('pageshow', e => {
-  if (!e.persisted) return;
+// Shared resume/refresh path: re-fetch remote, re-render, and correctly
+// reflect the outcome on the sync dot (the previous bfcache handler below
+// never touched syncStatus at all, so a dot left red from an earlier
+// failure would stay red forever even after a later resume succeeded).
+let refreshing = false;
+async function refreshFromRemote() {
+  if (refreshing) return;
+  refreshing = true;
   stateReady = false;
-  binFetch().then(remote => {
+  syncStatus('saving');
+  try {
+    const remote = await binFetch();
     if (Array.isArray(remote.habits) || remote.todos) absorb(remote);
     updateCache();
-    render(); renderWhy(); renderProjects(); renderGroceries(); renderGroceriesPreview(); renderProjectsPreview(); renderRecipesPreview(); renderHabitsSidebar(); renderCards();
-  }).catch(() => {}).finally(() => {
+    render(); renderWhy(); renderProjects(); renderGroceries(); renderGroceriesPreview(); renderProjectsPreview(); renderRecipesPreview(); renderAllHabits(); renderCards();
+    syncStatus('synced');
+    hideSyncError();
+  } catch (e) {
+    console.warn('Refresh failed:', e);
+    syncStatus('error');
+  } finally {
     stateReady = true;
     carryOver();
-  });
+    refreshing = false;
+  }
+}
+
+// On bfcache tab restore, re-fetch remote before allowing any writes
+window.addEventListener('pageshow', e => {
+  if (e.persisted) refreshFromRemote();
 });
+
+// PWA resumed from the background (iOS app switcher, etc.) -- the standard
+// way to detect this for a home-screen web app, per Page Visibility API
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') refreshFromRemote();
+});
+
+// Fallback: tap the sync dot to force a refresh without reopening the app
+document.getElementById('sync-dot').addEventListener('click', refreshFromRemote);
 
 // ── Pomodoro ──────────────────────────────────────────────────────
 
