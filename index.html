@@ -1630,6 +1630,12 @@
       pointer-events: none;
     }
     .card-handle:hover .card-colors { opacity: 1; pointer-events: auto; }
+    /* :hover doesn't reliably work on touch, so reveal color picker + delete on tap instead (see .card.controls-open below) */
+    @media (max-width: 960px) {
+      .card-colors { transition: none; }
+      .card.controls-open .card-colors { opacity: 1; pointer-events: auto; }
+      .card.controls-open .card-del { opacity: 1; }
+    }
     .card-color-dot {
       width: 8px;
       height: 8px;
@@ -2658,7 +2664,11 @@ function renderCards() {
     const id = card.dataset.id;
 
     const handle = card.querySelector('.card-handle');
-    wireDragHandle(handle, e => startCardDrag(e, handle, card, id), e => e.target.closest('.card-colors'));
+    wireDragHandle(handle, e => startCardDrag(e, handle, card, id), e => e.target.closest('.card-colors'), () => {
+      const wasOpen = card.classList.contains('controls-open');
+      grid.querySelectorAll('.card.controls-open').forEach(c => c.classList.remove('controls-open'));
+      card.classList.toggle('controls-open', !wasOpen);
+    });
 
     card.querySelector('.card-del').addEventListener('click', () => {
       const cards = state.cards || [];
@@ -2721,7 +2731,7 @@ function renderCards() {
 const DRAG_HOLD_MS        = 250;
 const DRAG_HOLD_TOLERANCE = 8;
 
-function wireDragHandle(handle, startDrag, shouldSkip) {
+function wireDragHandle(handle, startDrag, shouldSkip, onTap) {
   // Safari's coupling between Pointer Events and the underlying Touch Events
   // is looser than Chrome's -- preventDefault() on pointerdown alone does not
   // reliably stop iOS's native long-press text-selection gesture, which is
@@ -2751,27 +2761,40 @@ function wireDragHandle(handle, startDrag, shouldSkip) {
     e.preventDefault();
 
     const startX = e.clientX, startY = e.clientY;
-    let settled = false;
-    const cancel = () => {
-      if (settled) return;
-      settled = true;
+    let settled = false, moved = false;
+    const cleanup = () => {
       clearTimeout(timer);
       handle.removeEventListener('pointermove', onMove);
-      handle.removeEventListener('pointerup', cancel);
-      handle.removeEventListener('pointercancel', cancel);
+      handle.removeEventListener('pointerup', onUp);
+      handle.removeEventListener('pointercancel', onCancel);
     };
     const onMove = me => {
-      if (Math.hypot(me.clientX - startX, me.clientY - startY) > DRAG_HOLD_TOLERANCE) cancel();
+      if (!moved && Math.hypot(me.clientX - startX, me.clientY - startY) > DRAG_HOLD_TOLERANCE) {
+        moved = true;
+        if (!settled) { settled = true; cleanup(); }
+      }
+    };
+    const onUp = () => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      if (!moved && onTap) onTap(e);
+    };
+    const onCancel = () => {
+      if (settled) return;
+      settled = true;
+      cleanup();
     };
     const timer = setTimeout(() => {
       if (settled) return;
-      cancel();
+      settled = true;
+      cleanup();
       handle.setPointerCapture(e.pointerId);
       startDrag(e);
     }, DRAG_HOLD_MS);
     handle.addEventListener('pointermove', onMove);
-    handle.addEventListener('pointerup', cancel);
-    handle.addEventListener('pointercancel', cancel);
+    handle.addEventListener('pointerup', onUp);
+    handle.addEventListener('pointercancel', onCancel);
   });
 }
 
@@ -3711,10 +3734,17 @@ document.getElementById('mob-habits-btn').addEventListener('click', openMobHabit
 document.getElementById('mob-habits-close').addEventListener('click', closeMobHabits);
 document.getElementById('sheet-backdrop').addEventListener('click', closeMobHabits);
 
+document.addEventListener('click', e => {
+  if (!e.target.closest('.card')) {
+    document.querySelectorAll('.card.controls-open').forEach(c => c.classList.remove('controls-open'));
+  }
+});
+
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     closeProjects(); closeMobHabits(); closeGroceries(); closePomoModal();
     document.body.classList.remove('focus-mode');
+    document.querySelectorAll('.card.controls-open').forEach(c => c.classList.remove('controls-open'));
   }
   if (e.key === 'n' && !e.target.matches('input,textarea,[contenteditable]')) {
     e.preventDefault();
