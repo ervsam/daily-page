@@ -3573,7 +3573,8 @@ function renderGroceries() {
     const id = el.dataset.id;
     let pendingTimer = null;
 
-    el.querySelector('.check-square').addEventListener('click', () => {
+    const checkSq = el.querySelector('.check-square');
+    checkSq.addEventListener('click', () => {
       const it = (state.groceries[groceryStore] || []).find(x => x.id === id);
       if (!it) return;
 
@@ -3584,12 +3585,14 @@ function renderGroceries() {
         clearTimeout(pendingTimer);
         it.done = false;
         el.classList.remove('done');
+        checkSq.classList.remove('done');
         scheduleSave();
         return;
       }
 
       it.done = true;
       el.classList.add('done');
+      checkSq.classList.add('done');
       scheduleSave();
 
       pendingTimer = setTimeout(() => {
