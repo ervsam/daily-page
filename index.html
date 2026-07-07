@@ -708,8 +708,13 @@
       gap: 12px;
       padding: 12px 24px;
       border-bottom: 1px solid var(--border);
+      transition: transform 0.32s ease, opacity 0.32s ease;
     }
     .grocery-item:first-child { border-top: 1px solid var(--border); }
+    .grocery-item.removing {
+      transform: translateX(120%);
+      opacity: 0;
+    }
     .grocery-item-text {
       flex: 1;
       border: none;
@@ -722,8 +727,6 @@
     }
     .grocery-item-text::placeholder { color: var(--faint); }
     .grocery-item.done .grocery-item-text { color: var(--done-text); text-decoration: line-through; }
-    .grocery-item .btn-del { font-size: 18px; }
-    .grocery-item:hover .btn-del { opacity: 1; }
 
     /* Can Cook panel */
     #recipes-trigger { margin-top: 22px; }
@@ -3561,29 +3564,59 @@ function renderGroceries() {
   list.innerHTML = items.length
     ? items.map(it => `
       <div class="grocery-item${it.done ? ' done' : ''}" data-id="${esc(it.id)}">
-        <div class="check-square${it.done ? ' done' : ''}" title="Mark picked up">${CHECK_SVG}</div>
+        <div class="check-square${it.done ? ' done' : ''}" title="Check off to remove">${CHECK_SVG}</div>
         <input class="grocery-item-text" value="${esc(it.text)}" placeholder="Item…" autocomplete="off">
-        <button class="btn-del" title="Remove" tabindex="-1">×</button>
       </div>`).join('')
     : `<p style="padding:24px;font-size:13px;color:var(--faint);text-align:center">Nothing here.<br>Add one below.</p>`;
 
   list.querySelectorAll('.grocery-item').forEach(el => {
     const id = el.dataset.id;
+    let pendingTimer = null;
 
     el.querySelector('.check-square').addEventListener('click', () => {
       const it = (state.groceries[groceryStore] || []).find(x => x.id === id);
-      if (it) { it.done = !it.done; save(); renderGroceries(); renderGroceriesPreview(); }
+      if (!it) return;
+
+      if (el.classList.contains('removing')) return;
+
+      if (el.classList.contains('done')) {
+        // Tapped again during the pause -- cancel the pending removal
+        clearTimeout(pendingTimer);
+        it.done = false;
+        el.classList.remove('done');
+        scheduleSave();
+        return;
+      }
+
+      it.done = true;
+      el.classList.add('done');
+      scheduleSave();
+
+      pendingTimer = setTimeout(() => {
+        el.classList.add('removing');
+        setTimeout(() => {
+          const currentItems = state.groceries[groceryStore] || [];
+          const idx = currentItems.findIndex(x => x.id === id);
+          if (idx === -1) return;
+          const removed = currentItems[idx];
+          state.groceries[groceryStore] = currentItems.filter(x => x.id !== id);
+          save(); renderGroceries(); renderGroceriesPreview();
+          showUndo('Item removed',
+            () => {
+              if (!state.groceries[groceryStore]) state.groceries[groceryStore] = [];
+              state.groceries[groceryStore].splice(idx, 0, { ...removed, done: false });
+              save(); renderGroceries(); renderGroceriesPreview();
+            },
+            () => {}
+          );
+        }, 320);
+      }, 1500);
     });
 
     const textEl = el.querySelector('.grocery-item-text');
     textEl.addEventListener('input', () => {
       const it = (state.groceries[groceryStore] || []).find(x => x.id === id);
       if (it) { it.text = textEl.value; scheduleSave(); }
-    });
-
-    el.querySelector('.btn-del').addEventListener('click', () => {
-      state.groceries[groceryStore] = state.groceries[groceryStore].filter(x => x.id !== id);
-      save(); renderGroceries(); renderGroceriesPreview();
     });
   });
 }
