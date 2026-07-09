@@ -731,12 +731,28 @@
     /* Can Cook panel */
     #recipes-trigger { margin-top: 22px; }
 
+    .recipes-header-left { display: flex; align-items: center; gap: 6px; }
+    .recipe-back-btn {
+      display: none;
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 22px;
+      cursor: pointer;
+      padding: 0 2px;
+      line-height: 1;
+      transition: color 0.15s;
+    }
+    .recipe-back-btn:hover { color: var(--text); }
+
     .recipe-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
       padding: 12px 24px;
       border-bottom: 1px solid var(--border);
     }
     .recipe-item:first-child { border-top: 1px solid var(--border); }
-    .recipe-item-row { display: flex; align-items: center; gap: 12px; }
     .recipe-name {
       flex: 1;
       font-size: 14px;
@@ -745,26 +761,27 @@
     }
     .recipe-item .btn-del { font-size: 18px; }
     .recipe-item:hover .btn-del { opacity: 1; }
-    .recipe-note {
-      font-size: 11px;
-      color: var(--faint);
-      margin-top: 3px;
-      line-height: 1.4;
-      cursor: pointer;
+
+    #recipes-detail-view {
+      display: none;
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 24px;
     }
-    .recipe-note-edit {
-      display: block;
+    .recipe-detail-notes {
+      flex: 1;
       width: 100%;
+      min-height: 240px;
       border: none;
       background: none;
-      font-size: 11px;
+      font-size: 14px;
       font-family: inherit;
+      line-height: 1.6;
       color: var(--text);
-      border-bottom: 1px solid var(--accent);
-      padding: 3px 0 0;
       outline: none;
-      margin-top: 3px;
+      resize: none;
     }
+    .recipe-detail-notes::placeholder { color: var(--faint); }
 
     /* Sidebar habits */
     .sidebar-section-label {
@@ -1310,7 +1327,7 @@
       .grocery-item-text,
       .sheet-content .sidebar-add-habit,
       .sidebar-habit-name-edit,
-      .recipe-note-edit {
+      .recipe-detail-notes {
         font-size: 16px;
       }
     }
@@ -1738,13 +1755,21 @@
 <div class="projects-backdrop" id="recipes-backdrop"></div>
 <div class="projects-panel" id="recipes-panel">
   <div class="projects-header">
-    <span class="projects-title">Can Cook</span>
+    <div class="recipes-header-left">
+      <button class="recipe-back-btn" id="recipe-back-btn" aria-label="Back to dish list">‹</button>
+      <span class="projects-title" id="recipes-title">Can Cook</span>
+    </div>
     <button class="projects-close" id="recipes-close">×</button>
   </div>
-  <div class="projects-list" id="recipes-list"></div>
-  <div class="projects-add">
-    <div class="add-icon"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 0V10M0 5H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div>
-    <input type="text" id="recipes-input" placeholder="Add a dish…" autocomplete="off" />
+  <div id="recipes-list-view">
+    <div class="projects-list" id="recipes-list"></div>
+    <div class="projects-add">
+      <div class="add-icon"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 0V10M0 5H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+      <input type="text" id="recipes-input" placeholder="Add a dish…" autocomplete="off" />
+    </div>
+  </div>
+  <div id="recipes-detail-view">
+    <textarea class="recipe-detail-notes" id="recipe-detail-notes" placeholder="Write the recipe, prep steps, or tips…"></textarea>
   </div>
 </div>
 
@@ -3669,7 +3694,7 @@ function renderRecipesPreview() {
   const el = document.getElementById('recipes-sidebar-list');
   const recipes = state.recipes || [];
   el.innerHTML = recipes.length
-    ? recipes.map(r => `<div class="project-sidebar-item">${esc(r.name)}</div>`).join('')
+    ? `<div class="project-sidebar-item">${recipes.length} dish${recipes.length === 1 ? '' : 'es'}</div>`
     : `<p style="font-size:11px;color:var(--faint);padding:2px 0 0;">Nothing here</p>`;
   el.querySelectorAll('.project-sidebar-item').forEach(item => item.addEventListener('click', openRecipes));
 }
@@ -3680,48 +3705,18 @@ function renderRecipes() {
   list.innerHTML = recipes.length
     ? recipes.map(r => `
       <div class="recipe-item" data-id="${esc(r.id)}">
-        <div class="recipe-item-row">
-          <span class="recipe-name">${esc(r.name)}</span>
-          <button class="btn-del" title="Remove" tabindex="-1">×</button>
-        </div>
-        ${r.note ? `<div class="recipe-note">${esc(r.note)}</div>` : ''}
+        <span class="recipe-name">${esc(r.name)}</span>
+        <button class="btn-del" title="Remove" tabindex="-1">×</button>
       </div>`).join('')
     : `<p style="padding:24px;font-size:13px;color:var(--faint);text-align:center">No dishes yet.<br>Add one below.</p>`;
 
   list.querySelectorAll('.recipe-item').forEach(el => {
     const id = el.dataset.id;
 
-    const startNoteEdit = () => {
-      if (el.querySelector('.recipe-note-edit')) return;
-      const r = (state.recipes || []).find(x => x.id === id);
-      if (!r) return;
-      const noteEl = el.querySelector('.recipe-note');
-      const input = document.createElement('input');
-      input.className = 'recipe-note-edit';
-      input.placeholder = 'Add a short note…';
-      input.value = r.note || '';
-      if (noteEl) noteEl.replaceWith(input); else el.appendChild(input);
-      void input.offsetHeight; // force style/layout flush so iOS reads the real font-size before focusing
-      input.focus();
-      if (r.note) input.select();
+    el.querySelector('.recipe-name').addEventListener('click', () => openRecipeDetail(id));
 
-      let cancelled = false;
-      const commit = () => {
-        if (cancelled) return;
-        r.note = input.value.trim();
-        save(); renderRecipes();
-      };
-      input.addEventListener('blur', commit);
-      input.addEventListener('keydown', ke => {
-        if (ke.key === 'Enter')  { ke.preventDefault(); input.blur(); }
-        if (ke.key === 'Escape') { cancelled = true; renderRecipes(); }
-      });
-    };
-
-    el.querySelector('.recipe-name').addEventListener('click', startNoteEdit);
-    el.querySelector('.recipe-note')?.addEventListener('click', startNoteEdit);
-
-    el.querySelector('.btn-del').addEventListener('click', () => {
+    el.querySelector('.btn-del').addEventListener('click', e => {
+      e.stopPropagation();
       const idx     = state.recipes.findIndex(x => x.id === id);
       const removed = state.recipes[idx];
       state.recipes = state.recipes.filter(x => x.id !== id);
@@ -3734,8 +3729,40 @@ function renderRecipes() {
   });
 }
 
+let recipeDetailId = null;
+
+function openRecipeDetail(id) {
+  const r = (state.recipes || []).find(x => x.id === id);
+  if (!r) return;
+  recipeDetailId = id;
+  document.getElementById('recipe-back-btn').style.display = 'block';
+  document.getElementById('recipes-title').textContent = r.name;
+  document.getElementById('recipes-list-view').style.display = 'none';
+  const detailView = document.getElementById('recipes-detail-view');
+  detailView.style.display = 'flex';
+  const notesEl = document.getElementById('recipe-detail-notes');
+  notesEl.value = r.note || '';
+  void notesEl.offsetHeight; // force style/layout flush so iOS reads the real font-size before focusing
+  notesEl.focus();
+}
+
+function closeRecipeDetail() {
+  recipeDetailId = null;
+  document.getElementById('recipe-back-btn').style.display = 'none';
+  document.getElementById('recipes-title').textContent = 'Can Cook';
+  document.getElementById('recipes-detail-view').style.display = 'none';
+  document.getElementById('recipes-list-view').style.display = '';
+}
+
+document.getElementById('recipe-back-btn').addEventListener('click', closeRecipeDetail);
+document.getElementById('recipe-detail-notes').addEventListener('input', () => {
+  const r = (state.recipes || []).find(x => x.id === recipeDetailId);
+  if (r) { r.note = document.getElementById('recipe-detail-notes').value; scheduleSave(); }
+});
+
 function openRecipes() {
   closeProjects(); closeGroceries(); closeMobHabits();
+  closeRecipeDetail();
   renderRecipes();
   document.getElementById('recipes-panel').classList.add('open');
   document.getElementById('recipes-backdrop').classList.add('open');
@@ -3744,6 +3771,7 @@ function openRecipes() {
 function closeRecipes() {
   document.getElementById('recipes-panel').classList.remove('open');
   document.getElementById('recipes-backdrop').classList.remove('open');
+  closeRecipeDetail();
 }
 
 document.getElementById('recipes-trigger').addEventListener('click', openRecipes);
