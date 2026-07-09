@@ -3953,9 +3953,9 @@ function wireHintTagClicks(hintEl, targetInput) {
   });
 })();
 
-document.getElementById('add-input').addEventListener('keydown', e => {
-  if (e.key !== 'Enter') return;
-  const raw = e.target.value.trim();
+function commitAddInput() {
+  const inputEl = document.getElementById('add-input');
+  const raw = inputEl.value.trim();
   if (!raw) return;
 
   const { text: val, targetDate, mins, projectId } = parseTodoTokens(raw, TODAY);
@@ -3968,8 +3968,7 @@ document.getElementById('add-input').addEventListener('keydown', e => {
   state.todos[targetDate].push(todo);
   save();
   if (targetDate === viewDate) render();
-  e.target.value = '';
-  document.getElementById('add-input').focus();
+  inputEl.value = '';
 
   if (targetDate !== TODAY) {
     showUndo('Scheduled for tomorrow',
@@ -3977,7 +3976,16 @@ document.getElementById('add-input').addEventListener('keydown', e => {
       () => {}
     );
   }
+}
+
+document.getElementById('add-input').addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  commitAddInput();
+  document.getElementById('add-input').focus();
 });
+
+// Clicking away with text typed commits it too, rather than discarding it
+document.getElementById('add-input').addEventListener('blur', commitAddInput);
 </script>
 
 </body>
