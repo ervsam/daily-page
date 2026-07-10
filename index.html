@@ -748,22 +748,36 @@
     .recipe-item {
       display: flex;
       align-items: center;
-      gap: 12px;
-      padding: 12px 24px;
+      gap: 10px;
+      padding: 10px 24px;
       border-bottom: 1px solid var(--border);
-    }
-    .recipe-item:first-child { border-top: 1px solid var(--border); }
-    .recipe-name {
-      flex: 1;
-      font-size: 14px;
-      line-height: 1.5;
       cursor: pointer;
     }
-    .recipe-item .btn-del { font-size: 18px; }
-    .recipe-item:hover .btn-del { opacity: 1; }
+    .recipe-item:last-child { border-bottom: none; }
+    .recipe-item-main { flex: 1; min-width: 0; min-height: 36px; display: flex; flex-direction: column; justify-content: center; }
+    .recipe-name {
+      font-size: 14px;
+      line-height: 1.4;
+      color: var(--text);
+    }
+    .recipe-note-preview {
+      font-size: 11px;
+      color: var(--faint);
+      line-height: 1.3;
+      margin-top: 2px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .recipe-chevron {
+      color: var(--faint);
+      font-size: 15px;
+      flex-shrink: 0;
+    }
 
     #recipes-detail-view {
       display: none;
+      flex-direction: column;
       flex: 1;
       overflow-y: auto;
       padding: 20px 24px;
@@ -782,6 +796,18 @@
       resize: none;
     }
     .recipe-detail-notes::placeholder { color: var(--faint); }
+    .recipe-delete-btn {
+      display: block;
+      margin-top: 16px;
+      border: none;
+      background: none;
+      font-family: inherit;
+      font-size: 12px;
+      color: var(--faint);
+      cursor: pointer;
+      padding: 4px 0;
+    }
+    .recipe-delete-btn:hover { color: #e05a4e; }
 
     /* Sidebar habits */
     .sidebar-section-label {
@@ -1729,7 +1755,7 @@
   </div>
   <div class="projects-list" id="projects-list"></div>
   <div class="projects-add">
-    <div class="add-icon"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 0V10M0 5H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+    <div class="add-icon"><svg width="6" height="6" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 0V10M0 5H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div>
     <input type="text" id="projects-input" placeholder="Add a project…" autocomplete="off" />
   </div>
 </div>
@@ -1764,12 +1790,13 @@
   <div id="recipes-list-view">
     <div class="projects-list" id="recipes-list"></div>
     <div class="projects-add">
-      <div class="add-icon"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 0V10M0 5H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+      <div class="add-icon"><svg width="6" height="6" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 0V10M0 5H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div>
       <input type="text" id="recipes-input" placeholder="Add a dish…" autocomplete="off" />
     </div>
   </div>
   <div id="recipes-detail-view">
     <textarea class="recipe-detail-notes" id="recipe-detail-notes" placeholder="Write the recipe, prep steps, or tips…"></textarea>
+    <button class="recipe-delete-btn" id="recipe-delete-btn" tabindex="-1">Delete dish</button>
   </div>
 </div>
 
@@ -1828,7 +1855,7 @@
     <ul class="todo-list" id="todo-list"></ul>
     <div class="add-row" id="add-row">
       <div class="add-row-spacer"></div>
-      <div class="add-icon"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 0V10M0 5H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+      <div class="add-icon"><svg width="6" height="6" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 0V10M0 5H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div>
       <input class="add-input" id="add-input" type="text" placeholder="Add a task…" autocomplete="off" />
     </div>
     <div class="syntax-panel" id="syntax-panel">
@@ -3705,27 +3732,17 @@ function renderRecipes() {
   list.innerHTML = recipes.length
     ? recipes.map(r => `
       <div class="recipe-item" data-id="${esc(r.id)}">
-        <span class="recipe-name">${esc(r.name)}</span>
-        <button class="btn-del" title="Remove" tabindex="-1">×</button>
+        <div class="recipe-item-main">
+          <div class="recipe-name">${esc(r.name)}</div>
+          ${r.note ? `<div class="recipe-note-preview">${esc(r.note)}</div>` : ''}
+        </div>
+        <span class="recipe-chevron" aria-hidden="true">›</span>
       </div>`).join('')
     : `<p style="padding:24px;font-size:13px;color:var(--faint);text-align:center">No dishes yet.<br>Add one below.</p>`;
 
   list.querySelectorAll('.recipe-item').forEach(el => {
     const id = el.dataset.id;
-
-    el.querySelector('.recipe-name').addEventListener('click', () => openRecipeDetail(id));
-
-    el.querySelector('.btn-del').addEventListener('click', e => {
-      e.stopPropagation();
-      const idx     = state.recipes.findIndex(x => x.id === id);
-      const removed = state.recipes[idx];
-      state.recipes = state.recipes.filter(x => x.id !== id);
-      save(); renderRecipes(); renderRecipesPreview();
-      showUndo('Dish deleted',
-        () => { state.recipes.splice(idx, 0, removed); save(); renderRecipes(); renderRecipesPreview(); },
-        () => {}
-      );
-    });
+    el.addEventListener('click', () => openRecipeDetail(id));
   });
 }
 
@@ -3752,9 +3769,24 @@ function closeRecipeDetail() {
   document.getElementById('recipes-title').textContent = 'Can Cook';
   document.getElementById('recipes-detail-view').style.display = 'none';
   document.getElementById('recipes-list-view').style.display = '';
+  renderRecipes(); // reflect any note just edited in the detail view
 }
 
 document.getElementById('recipe-back-btn').addEventListener('click', closeRecipeDetail);
+document.getElementById('recipe-delete-btn').addEventListener('click', () => {
+  const id = recipeDetailId;
+  if (!id) return;
+  const idx     = state.recipes.findIndex(x => x.id === id);
+  const removed = state.recipes[idx];
+  state.recipes = state.recipes.filter(x => x.id !== id);
+  save();
+  closeRecipeDetail();
+  renderRecipesPreview();
+  showUndo('Dish deleted',
+    () => { state.recipes.splice(idx, 0, removed); save(); renderRecipes(); renderRecipesPreview(); },
+    () => {}
+  );
+});
 document.getElementById('recipe-detail-notes').addEventListener('input', () => {
   const r = (state.recipes || []).find(x => x.id === recipeDetailId);
   if (r) { r.note = document.getElementById('recipe-detail-notes').value; scheduleSave(); }
