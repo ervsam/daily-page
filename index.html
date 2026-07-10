@@ -2374,10 +2374,21 @@ function render() {
     });
 
     // Click text → edit in place (multi-line, with clickable @tomorrow/[N]/#project hints)
-    el.querySelector('.todo-text')?.addEventListener('click', () => {
+    el.querySelector('.todo-text')?.addEventListener('click', (e) => {
       if (isPast || !t) return;
       const textEl = el.querySelector('.todo-text');
       if (!textEl) return;
+
+      // Capture the click's character offset before the span is replaced,
+      // so the cursor lands where clicked instead of selecting everything.
+      let clickOffset = null;
+      if (document.caretRangeFromPoint) {
+        const range = document.caretRangeFromPoint(e.clientX, e.clientY);
+        if (range && textEl.contains(range.startContainer)) clickOffset = range.startOffset;
+      } else if (document.caretPositionFromPoint) {
+        const pos = document.caretPositionFromPoint(e.clientX, e.clientY);
+        if (pos && textEl.contains(pos.offsetNode)) clickOffset = pos.offset;
+      }
 
       const textarea = document.createElement('textarea');
       textarea.rows = 1;
@@ -2394,7 +2405,12 @@ function render() {
       autoGrowTextarea(textarea);
       textarea.addEventListener('input', () => autoGrowTextarea(textarea));
       textarea.focus();
-      textarea.select();
+      if (clickOffset !== null) {
+        const pos = Math.max(0, Math.min(clickOffset, textarea.value.length));
+        textarea.setSelectionRange(pos, pos);
+      } else {
+        textarea.select();
+      }
 
       // Escape sets this so the blur that render() forces on this now-detached
       // textarea (removing it from the DOM moves focus, which fires blur) doesn't
