@@ -567,7 +567,6 @@
       user-select: none;
       border-bottom: 1px solid var(--border);
     }
-    .project-item:first-child { border-top: 1px solid var(--border); }
 
     .project-check {
       width: 16px;
@@ -598,15 +597,15 @@
     .project-item .btn-del { font-size: 18px; }
     .project-item:hover .btn-del { opacity: 1; }
 
-    .projects-add {
+    .item-add {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
       padding: 13px 24px;
-      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
       flex-shrink: 0;
     }
-    .projects-add input {
+    .item-add input {
       flex: 1;
       border: none;
       background: none;
@@ -615,7 +614,21 @@
       outline: none;
       font-family: inherit;
     }
-    .projects-add input::placeholder { color: var(--faint); }
+    .item-add input::placeholder { color: var(--faint); }
+    .item-add-btn {
+      background: none;
+      border: 1.5px solid var(--border);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+    .item-add-btn:hover { border-color: var(--accent); color: var(--accent); }
 
     .project-sidebar-item {
       font-size: 11px;
@@ -988,22 +1001,6 @@
     }
     .card-text::placeholder { color: var(--faint); }
 
-    .card-del {
-      position: absolute;
-      top: 8px;
-      right: 10px;
-      opacity: 0;
-      border: none;
-      background: none;
-      color: var(--muted);
-      font-size: 17px;
-      cursor: pointer;
-      padding: 0;
-      line-height: 1;
-      transition: opacity 0.12s;
-    }
-    .card:hover .card-del { opacity: 1; }
-
     .card-placeholder {
       border: 2px dashed var(--faint);
       border-radius: 8px;
@@ -1225,6 +1222,73 @@
     }
     .pomo-modal-close:hover { color: var(--text); }
 
+    .card-modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 300;
+      background: rgba(0,0,0,0.35);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card-modal-backdrop.open { display: flex; }
+    @media (min-width: 961px) { .card-modal-backdrop { display: none !important; } }
+    .card-modal {
+      position: relative;
+      width: 100%;
+      max-width: 420px;
+      max-height: 80vh;
+      background: var(--bg);
+      border-radius: 20px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+      display: flex;
+      flex-direction: column;
+      padding: 32px 24px 24px;
+    }
+    .card-modal-close {
+      position: absolute;
+      top: 12px; right: 14px;
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 20px;
+      cursor: pointer;
+      padding: 4px 8px;
+      line-height: 1;
+      transition: color 0.15s;
+    }
+    .card-modal-close:hover { color: var(--text); }
+    .card-modal-title {
+      width: 100%;
+      border: none;
+      background: none;
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+      outline: none;
+      font-family: inherit;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 12px;
+      margin-bottom: 12px;
+    }
+    .card-modal-title::placeholder { color: var(--faint); font-weight: 400; }
+    .card-modal-text {
+      width: 100%;
+      min-height: 220px;
+      border: none;
+      background: none;
+      font-family: inherit;
+      font-size: 16px;
+      color: var(--text);
+      resize: none;
+      outline: none;
+      line-height: 1.6;
+    }
+    .card-modal-text::placeholder { color: var(--faint); }
+
     .pomo-modal-modes {
       display: flex;
       gap: 4px;
@@ -1348,7 +1412,7 @@
 
     /* iOS Safari auto-zooms on focus when a field's font-size is under 16px */
     @media (max-width: 960px) {
-      .projects-add input,
+      .item-add input,
       .grocery-add input,
       .grocery-item-text,
       .sheet-content .sidebar-add-habit,
@@ -1690,7 +1754,6 @@
     @media (max-width: 960px) {
       .card-colors { transition: none; }
       .card.controls-open .card-colors { opacity: 1; pointer-events: auto; }
-      .card.controls-open .card-del { opacity: 1; }
     }
     .card-color-dot {
       width: 8px;
@@ -1753,11 +1816,11 @@
     <span class="projects-title">Projects</span>
     <button class="projects-close" id="projects-close">×</button>
   </div>
-  <div class="projects-list" id="projects-list"></div>
-  <div class="projects-add">
-    <div class="add-icon"><svg width="6" height="6" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 0V10M0 5H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+  <div class="item-add">
     <input type="text" id="projects-input" placeholder="Add a project…" autocomplete="off" />
+    <button class="item-add-btn" id="projects-add-btn">Add</button>
   </div>
+  <div class="projects-list" id="projects-list"></div>
 </div>
 
 <div class="projects-backdrop" id="groceries-backdrop"></div>
@@ -1788,11 +1851,11 @@
     <button class="projects-close" id="recipes-close">×</button>
   </div>
   <div id="recipes-list-view">
-    <div class="projects-list" id="recipes-list"></div>
-    <div class="projects-add">
-      <div class="add-icon"><svg width="6" height="6" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 0V10M0 5H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+    <div class="item-add">
       <input type="text" id="recipes-input" placeholder="Add a dish…" autocomplete="off" />
+      <button class="item-add-btn" id="recipes-add-btn">Add</button>
     </div>
+    <div class="projects-list" id="recipes-list"></div>
   </div>
   <div id="recipes-detail-view">
     <textarea class="recipe-detail-notes" id="recipe-detail-notes" placeholder="Write the recipe, prep steps, or tips…"></textarea>
@@ -1928,6 +1991,15 @@
       <button class="pomo-fs-btn" id="pomo-fs-reset">↺</button>
     </div>
     <div class="pomo-fs-log" id="pomo-fs-log"></div>
+  </div>
+</div>
+
+<!-- Mobile-only card focused-edit modal -->
+<div class="card-modal-backdrop" id="card-modal-backdrop">
+  <div class="card-modal" id="card-modal">
+    <button class="card-modal-close" id="card-modal-close" aria-label="Close card">×</button>
+    <input class="card-modal-title" id="card-modal-title" placeholder="Title…" autocomplete="off" />
+    <textarea class="card-modal-text" id="card-modal-text" placeholder="Notes…"></textarea>
   </div>
 </div>
 
@@ -2735,7 +2807,6 @@ function renderCards() {
         </div>
         ${DRAG_SVG}
       </div>
-      <button class="card-del" title="Delete card" tabindex="-1">×</button>
       <input class="card-title${c.title ? '' : ' empty'}" placeholder="Title…" value="${esc(c.title || '')}">
       <textarea class="card-text" placeholder="Notes…">${esc(c.text)}</textarea>
     </div>
@@ -2749,18 +2820,6 @@ function renderCards() {
       const wasOpen = card.classList.contains('controls-open');
       grid.querySelectorAll('.card.controls-open').forEach(c => c.classList.remove('controls-open'));
       card.classList.toggle('controls-open', !wasOpen);
-    });
-
-    card.querySelector('.card-del').addEventListener('click', () => {
-      const cards = state.cards || [];
-      const idx   = cards.findIndex(x => x.id === id);
-      const item  = cards[idx];
-      state.cards = cards.filter(x => x.id !== id);
-      save(); renderCards();
-      showUndo('Card deleted',
-        () => { state.cards = state.cards || []; state.cards.splice(idx, 0, item); save(); renderCards(); },
-        () => {}
-      );
     });
 
     const titleEl = card.querySelector('.card-title');
@@ -2777,6 +2836,17 @@ function renderCards() {
     ta.addEventListener('input', () => {
       const c = (state.cards || []).find(x => x.id === id);
       if (c) { c.text = ta.value; scheduleSave(); }
+    });
+
+    // On mobile, editing a small card in place is cramped -- open a focused
+    // modal instead. Suppress the field's own focus so the on-screen
+    // keyboard doesn't pop up behind the modal a beat later.
+    [titleEl, ta].forEach(field => {
+      field.addEventListener('pointerdown', e => {
+        if (!isMobileViewport()) return;
+        e.preventDefault();
+        openCardModal(id);
+      });
     });
 
     card.querySelectorAll('.card-color-dot').forEach(dot => {
@@ -2804,6 +2874,47 @@ function renderCards() {
   });
   grid.appendChild(addBtn);
 }
+
+function isMobileViewport() {
+  return window.matchMedia('(max-width: 960px)').matches;
+}
+
+let cardModalId = null;
+
+function openCardModal(id) {
+  const c = (state.cards || []).find(x => x.id === id);
+  if (!c) return;
+  cardModalId = id;
+  const titleEl = document.getElementById('card-modal-title');
+  const textEl  = document.getElementById('card-modal-text');
+  titleEl.value = c.title || '';
+  textEl.value  = c.text  || '';
+  document.getElementById('card-modal-backdrop').classList.add('open');
+  requestAnimationFrame(() => (c.title ? textEl : titleEl).focus());
+}
+
+function closeCardModal() {
+  cardModalId = null;
+  document.getElementById('card-modal-backdrop').classList.remove('open');
+  renderCards();
+}
+
+document.getElementById('card-modal-title').addEventListener('input', () => {
+  const c = (state.cards || []).find(x => x.id === cardModalId);
+  if (!c) return;
+  c.title = document.getElementById('card-modal-title').value;
+  scheduleSave();
+});
+document.getElementById('card-modal-text').addEventListener('input', () => {
+  const c = (state.cards || []).find(x => x.id === cardModalId);
+  if (!c) return;
+  c.text = document.getElementById('card-modal-text').value;
+  scheduleSave();
+});
+document.getElementById('card-modal-close').addEventListener('click', closeCardModal);
+document.getElementById('card-modal-backdrop').addEventListener('click', e => {
+  if (e.target.id === 'card-modal-backdrop') closeCardModal();
+});
 
 // Wires a drag handle so touch input requires a brief hold before the drag
 // starts (so a quick tap or a scroll swipe doesn't trigger it); mouse/pen
@@ -3600,15 +3711,20 @@ function closeProjects() {
 document.getElementById('projects-trigger').addEventListener('click', openProjects);
 document.getElementById('projects-close').addEventListener('click', closeProjects);
 document.getElementById('projects-backdrop').addEventListener('click', closeProjects);
-document.getElementById('projects-input').addEventListener('keydown', e => {
-  if (e.key !== 'Enter') return;
-  const val = e.target.value.trim();
+function addProjectItem() {
+  const input = document.getElementById('projects-input');
+  const val = input.value.trim();
   if (!val) return;
   if (!state.projects) state.projects = [];
-  state.projects.push({ id: 'p' + Date.now(), text: val, done: false });
+  state.projects.unshift({ id: 'p' + Date.now(), text: val, done: false });
   save(); renderProjects(); renderProjectsPreview();
-  e.target.value = '';
+  input.value = '';
+  input.focus();
+}
+document.getElementById('projects-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addProjectItem();
 });
+document.getElementById('projects-add-btn').addEventListener('click', addProjectItem);
 
 // ── Groceries ─────────────────────────────────────────────────────
 
@@ -3825,15 +3941,20 @@ function closeRecipes() {
 document.getElementById('recipes-trigger').addEventListener('click', openRecipes);
 document.getElementById('recipes-close').addEventListener('click', closeRecipes);
 document.getElementById('recipes-backdrop').addEventListener('click', closeRecipes);
-document.getElementById('recipes-input').addEventListener('keydown', e => {
-  if (e.key !== 'Enter') return;
-  const val = e.target.value.trim();
+function addRecipeItem() {
+  const input = document.getElementById('recipes-input');
+  const val = input.value.trim();
   if (!val) return;
   if (!state.recipes) state.recipes = [];
-  state.recipes.push({ id: 'r' + Date.now(), name: val, note: '' });
+  state.recipes.unshift({ id: 'r' + Date.now(), name: val, note: '' });
   save(); renderRecipes(); renderRecipesPreview();
-  e.target.value = '';
+  input.value = '';
+  input.focus();
+}
+document.getElementById('recipes-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addRecipeItem();
 });
+document.getElementById('recipes-add-btn').addEventListener('click', addRecipeItem);
 
 (function() {
   const el = document.getElementById('daily-why');
