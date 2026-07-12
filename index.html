@@ -981,7 +981,7 @@
       transition: color 0.15s;
       margin-bottom: 2px;
       position: relative;
-      touch-action: pan-y;
+      touch-action: none;
     }
     .card:hover .card-handle { color: var(--muted); }
     .card-handle:active { cursor: grabbing; }
@@ -2958,6 +2958,18 @@ const DRAG_HOLD_MS        = 250;
 const DRAG_HOLD_TOLERANCE = 8;
 
 function wireDragHandle(handle, startDrag, shouldSkip, onTap) {
+  // Safari's coupling between Pointer Events and the underlying Touch Events
+  // is looser than Chrome's -- preventDefault() on pointerdown alone does not
+  // reliably stop iOS's native long-press text-selection callout, which is
+  // tied to touchstart, and CSS alone (-webkit-user-select/-webkit-touch-callout)
+  // is not enough either (confirmed by real-device testing). Must be
+  // { passive: false }, since touch listeners default to passive (making
+  // preventDefault a silent no-op) otherwise.
+  handle.addEventListener('touchstart', e => {
+    if (shouldSkip && shouldSkip(e)) return;
+    e.preventDefault();
+  }, { passive: false });
+
   handle.addEventListener('pointerdown', e => {
     if (shouldSkip && shouldSkip(e)) return;
     if (e.button !== undefined && e.button !== 0) return;
@@ -2969,42 +2981,44 @@ function wireDragHandle(handle, startDrag, shouldSkip, onTap) {
       return;
     }
 
-    // Deliberately do NOT preventDefault here for touch: that would block the
-    // browser's native scrolling for a quick swipe/scroll gesture starting on
-    // the handle. Instead wait out a brief stationary hold (DRAG_HOLD_MS)
-    // before committing to a drag; setPointerCapture() at that point takes
-    // the rest of the gesture over from native scroll handling. The handle's
-    // own -webkit-touch-callout/user-select: none (see CSS) suppress the
-    // native long-press selection UI in the meantime.
+    // Must be synchronous, within this handler, to actually suppress iOS's
+    // native long-press selection/callout gesture. Calling preventDefault()
+    // later inside the setTimeout below is a no-op -- the event has already
+    // been dispatched, so it does nothing and the native gesture wins if the
+    // hold outlasts iOS's own long-press timer.
+    e.preventDefault();
+
+    // preventDefault above also blocks native scrolling for this touch, so a
+    // swipe that starts on the handle (rather than a stationary hold) is
+    // replicated manually here via scrollBy() once it's recognized as a
+    // scroll, so the page still scrolls normally.
     const startX = e.clientX, startY = e.clientY;
-    let settled = false, moved = false;
-    const cleanup = () => {
+    let lastY = e.clientY;
+    let mode = 'pending'; // 'pending' -> 'scrolling' | 'dragging'
+    const finish = () => {
       clearTimeout(timer);
       handle.removeEventListener('pointermove', onMove);
       handle.removeEventListener('pointerup', onUp);
       handle.removeEventListener('pointercancel', onCancel);
     };
     const onMove = me => {
-      if (!moved && Math.hypot(me.clientX - startX, me.clientY - startY) > DRAG_HOLD_TOLERANCE) {
-        moved = true;
-        if (!settled) { settled = true; cleanup(); }
+      if (mode === 'pending' && Math.hypot(me.clientX - startX, me.clientY - startY) > DRAG_HOLD_TOLERANCE) {
+        mode = 'scrolling';
+        clearTimeout(timer);
       }
+      if (mode === 'scrolling') window.scrollBy(0, lastY - me.clientY);
+      lastY = me.clientY;
     };
     const onUp = () => {
-      if (settled) return;
-      settled = true;
-      cleanup();
-      if (!moved && onTap) onTap(e);
+      const wasPending = mode === 'pending';
+      finish();
+      if (wasPending && onTap) onTap(e);
     };
-    const onCancel = () => {
-      if (settled) return;
-      settled = true;
-      cleanup();
-    };
+    const onCancel = () => finish();
     const timer = setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      cleanup();
+      if (mode !== 'pending') return;
+      mode = 'dragging';
+      finish();
       handle.setPointerCapture(e.pointerId);
       startDrag(e);
     }, DRAG_HOLD_MS);
