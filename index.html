@@ -978,6 +978,7 @@
       -webkit-user-select: none;
       -webkit-touch-callout: none;
       -webkit-tap-highlight-color: transparent;
+      -webkit-user-drag: none;
       transition: color 0.15s;
       margin-bottom: 2px;
       position: relative;
@@ -985,6 +986,13 @@
     }
     .card:hover .card-handle { color: var(--muted); }
     .card-handle:active { cursor: grabbing; }
+    /* The 6-dot icon is purely decorative -- keep it out of hit-testing so
+       touches never resolve to the <svg> itself. Safari has its own native
+       drag-image gesture for image-like elements (separate from text
+       selection/callout) that isn't fully suppressed by -webkit-user-drag
+       alone on some versions, causing a visual stutter when a scroll starts
+       right on the icon; routing every touch to the parent div sidesteps it. */
+    .card-handle svg { pointer-events: none; -webkit-user-drag: none; }
 
     .card-text {
       width: 100%;
