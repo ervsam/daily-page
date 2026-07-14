@@ -1009,7 +1009,10 @@
       overflow-y: auto;
       user-select: text;
       -webkit-touch-callout: default;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
     }
+    .card-text::-webkit-scrollbar { display: none; }
     .card-text::placeholder { color: var(--faint); }
 
     .card-placeholder {
