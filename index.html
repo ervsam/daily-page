@@ -925,6 +925,24 @@
       padding: 0; transition: background 0.1s, border-color 0.1s, color 0.1s;
     }
     .freq-pill.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .habit-freq-mode { display: flex; gap: 4px; padding-bottom: 3px; }
+    .freq-mode-btn {
+      border: none; background: none; padding: 0;
+      font-size: 9px; font-weight: 600; color: var(--faint);
+      cursor: pointer; transition: color 0.1s;
+    }
+    .freq-mode-btn.active { color: var(--accent); }
+    .habit-freq-stepper { display: flex; align-items: center; gap: 5px; padding: 2px 0; }
+    .freq-step-btn {
+      width: 14px; height: 14px; border-radius: 50%;
+      border: 1.5px solid var(--border); background: none;
+      font-size: 10px; line-height: 1; color: var(--muted);
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      padding: 0;
+    }
+    .freq-step-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .freq-step-value { font-size: 11px; font-weight: 600; color: var(--text); min-width: 10px; text-align: center; }
+    .freq-step-label { font-size: 10px; color: var(--faint); }
     .sidebar-habit-name-edit {
       flex: 1; min-width: 0; border: none; background: none;
       font-size: 11px; font-family: inherit; color: var(--text);
@@ -2238,10 +2256,33 @@ function carryOver() {
 function uid() { return 'h-' + Math.random().toString(36).slice(2, 9); }
 
 function isTargetDay(habit, dateString) {
-  if (typeof habit === 'string' || habit.freq === 'daily' || !habit.freq?.days) return true;
+  if (typeof habit === 'string' || habit.freq === 'daily' || habit.freq?.type === 'perWeek' || !habit.freq?.days) return true;
   const [y, m, d] = dateString.split('-').map(Number);
   const dayName = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(y, m - 1, d).getDay()];
   return habit.freq.days.includes(dayName);
+}
+
+// Monday-start date of the calendar week containing dateString.
+function weekStartDate(dateString) {
+  const [y, m, d] = dateString.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  const dow = (date.getDay() + 6) % 7; // Mon=0 ... Sun=6
+  date.setDate(date.getDate() - dow);
+  return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
+}
+
+// "X per week" habits: how many days done so far in the current calendar
+// week (Monday start), against the habit's weekly target. Unlike
+// calcWeekRate (a rolling trailing-7-day window used by specific-days
+// habits), this resets at the actual start of each calendar week.
+function calcWeeklyCount(habit) {
+  const start  = weekStartDate(TODAY);
+  const target = habit.freq?.target || 1;
+  let done = 0;
+  for (let d = start; d <= TODAY; d = shiftDate(d, 1)) {
+    if (state.habitLog[d]?.[habit.name]) done++;
+  }
+  return { done, target };
 }
 
 function calcStreak(habit) {
@@ -2616,12 +2657,23 @@ function renderHabitsInto(el) {
     : '';
   el.innerHTML = _habitHeader + state.habits.map(h => {
     const name      = h.name;
+    const isPerWeek = h.freq?.type === 'perWeek';
     const todayDone = state.habitLog[TODAY]?.[name] || false;
-    const s         = calcStreak(h);
-    const { done: wr, total: wt } = calcWeekRate(h);
+
+    let wr, wt, streakBadge;
+    if (isPerWeek) {
+      const { done, target } = calcWeeklyCount(h);
+      wr = done; wt = target;
+      streakBadge = '';
+    } else {
+      const s = calcStreak(h);
+      ({ done: wr, total: wt } = calcWeekRate(h));
+      streakBadge = `<span class="sidebar-streak${s > 0 ? ' active' : ''}">${s > 0 ? s + 'd' : ''}</span>`;
+    }
+
     const dots = Array.from({ length: HISTORY_DAYS }, (_, i) => {
       const d       = dateStr(HISTORY_DAYS - 1 - i);
-      const target  = isTargetDay(h, d);
+      const target  = isPerWeek || isTargetDay(h, d);
       const done    = target && (state.habitLog[d]?.[name] || false);
       const isToday = (i === HISTORY_DAYS - 1);
       if (!target) return `<div class="dot non-target"></div>`;
@@ -2633,12 +2685,12 @@ function renderHabitsInto(el) {
           <div class="habit-drag-handle">${DRAG_SVG}</div>
           <div class="check-square${todayDone ? ' done' : ''}" data-habit="${esc(name)}">${CHECK_SVG}</div>
           <span class="sidebar-habit-name" title="${esc(name)}">${esc(name)}</span>
-          <span class="sidebar-week-rate">${wr}/${wt}</span>
+          <span class="sidebar-week-rate"${isPerWeek ? ' title="this week"' : ''}>${wr}/${wt}</span>
           <button class="btn-del" title="Remove habit" tabindex="-1">×</button>
         </div>
         <div class="sidebar-habit-meta">
           <div class="sidebar-habit-dots">${dots}</div>
-          <span class="sidebar-streak${s > 0 ? ' active' : ''}">${s > 0 ? s + 'd' : ''}</span>
+          ${streakBadge}
         </div>
       </div>
     `;
@@ -2674,24 +2726,62 @@ function renderHabitsInto(el) {
       input.className = 'sidebar-habit-name-edit';
       nameEl.replaceWith(input);
 
-      // Replace meta dots with day-picker pills
+      // Replace meta dots with a frequency editor: either day-picker pills
+      // (specific days) or a weekly-count stepper (X per week).
       const metaEl      = item.querySelector('.sidebar-habit-meta');
       const currentDays = habitObj.freq === 'daily' ? [...DAY_KEYS] : (habitObj.freq?.days || [...DAY_KEYS]);
       const selected    = new Set(currentDays);
-      metaEl.innerHTML  = `<div class="habit-freq-pills">${
-        DAY_KEYS.map((d, i) =>
-          `<button class="freq-pill${selected.has(d) ? ' active' : ''}" data-day="${d}" type="button">${DAY_LABELS[i]}</button>`
-        ).join('')
-      }</div>`;
-      metaEl.querySelectorAll('.freq-pill').forEach(pill => {
-        pill.addEventListener('mousedown', e => e.preventDefault());
-        pill.addEventListener('click', () => {
-          const day = pill.dataset.day;
-          if (selected.has(day)) { if (selected.size > 1) selected.delete(day); }
-          else selected.add(day);
-          pill.classList.toggle('active', selected.has(day));
+      let freqMode       = habitObj.freq?.type === 'perWeek' ? 'perWeek' : 'days';
+      let weeklyTarget    = habitObj.freq?.target || 3;
+
+      const renderFreqEditor = () => {
+        metaEl.innerHTML = `
+          <div class="habit-freq-mode">
+            <button class="freq-mode-btn${freqMode === 'days' ? ' active' : ''}" data-mode="days" type="button">Days</button>
+            <button class="freq-mode-btn${freqMode === 'perWeek' ? ' active' : ''}" data-mode="perWeek" type="button">X/week</button>
+          </div>
+          ${freqMode === 'days'
+            ? `<div class="habit-freq-pills">${DAY_KEYS.map((d, i) =>
+                `<button class="freq-pill${selected.has(d) ? ' active' : ''}" data-day="${d}" type="button">${DAY_LABELS[i]}</button>`
+              ).join('')}</div>`
+            : `<div class="habit-freq-stepper">
+                <button class="freq-step-btn" data-step="-1" type="button">−</button>
+                <span class="freq-step-value">${weeklyTarget}</span>
+                <button class="freq-step-btn" data-step="1" type="button">+</button>
+                <span class="freq-step-label">days/wk</span>
+              </div>`
+          }
+        `;
+
+        metaEl.querySelectorAll('.freq-mode-btn').forEach(btn => {
+          btn.addEventListener('mousedown', e => e.preventDefault());
+          btn.addEventListener('click', () => {
+            freqMode = btn.dataset.mode;
+            renderFreqEditor();
+          });
         });
-      });
+
+        if (freqMode === 'days') {
+          metaEl.querySelectorAll('.freq-pill').forEach(pill => {
+            pill.addEventListener('mousedown', e => e.preventDefault());
+            pill.addEventListener('click', () => {
+              const day = pill.dataset.day;
+              if (selected.has(day)) { if (selected.size > 1) selected.delete(day); }
+              else selected.add(day);
+              pill.classList.toggle('active', selected.has(day));
+            });
+          });
+        } else {
+          metaEl.querySelectorAll('.freq-step-btn').forEach(btn => {
+            btn.addEventListener('mousedown', e => e.preventDefault());
+            btn.addEventListener('click', () => {
+              weeklyTarget = Math.max(1, Math.min(7, weeklyTarget + Number(btn.dataset.step)));
+              renderFreqEditor();
+            });
+          });
+        }
+      };
+      renderFreqEditor();
 
       void input.offsetHeight; // force style/layout flush so iOS reads the real font-size before focusing
       input.focus(); input.select();
@@ -2710,7 +2800,9 @@ function renderHabitsInto(el) {
               }
             }
           }
-          state.habits[idx].freq = selected.size === 7 ? 'daily' : { days: [...selected] };
+          state.habits[idx].freq = freqMode === 'perWeek'
+            ? { type: 'perWeek', target: weeklyTarget }
+            : (selected.size === 7 ? 'daily' : { days: [...selected] });
           save();
         }
         renderAllHabits();
