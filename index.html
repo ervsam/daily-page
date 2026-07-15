@@ -916,7 +916,8 @@
     .sidebar-habit-dots .dot.habit-today { box-shadow: 0 0 0 1.5px var(--faint); }
     .sidebar-habit-dots .dot.done.habit-today { box-shadow: 0 0 0 1.5px var(--accent); }
     .sidebar-habit-dots .dot.non-target { background: var(--faint); border-radius: 1px; height: 2px; margin-top: 1.5px; }
-    .habit-freq-pills { display: flex; gap: 2px; padding: 3px 0; }
+    .habit-freq-editor { display: flex; flex-direction: column; gap: 4px; width: 100%; padding: 2px 0; }
+    .habit-freq-pills { display: flex; gap: 2px; }
     .freq-pill {
       width: 12px; height: 12px; border-radius: 50%;
       border: 1.5px solid var(--border); background: none;
@@ -925,14 +926,16 @@
       padding: 0; transition: background 0.1s, border-color 0.1s, color 0.1s;
     }
     .freq-pill.active { background: var(--accent); border-color: var(--accent); color: #fff; }
-    .habit-freq-mode { display: flex; gap: 4px; padding-bottom: 3px; }
+    .habit-freq-mode { display: flex; gap: 4px; }
     .freq-mode-btn {
-      border: none; background: none; padding: 0;
-      font-size: 9px; font-weight: 600; color: var(--faint);
-      cursor: pointer; transition: color 0.1s;
+      border: 1.5px solid var(--border); background: none;
+      border-radius: 5px; padding: 2px 7px;
+      font-size: 9px; font-weight: 600; color: var(--muted);
+      cursor: pointer; transition: color 0.1s, background 0.1s, border-color 0.1s;
     }
-    .freq-mode-btn.active { color: var(--accent); }
-    .habit-freq-stepper { display: flex; align-items: center; gap: 5px; padding: 2px 0; }
+    .freq-mode-btn:hover { color: var(--text); }
+    .freq-mode-btn.active { color: #fff; background: var(--accent); border-color: var(--accent); }
+    .habit-freq-stepper { display: flex; align-items: center; gap: 5px; }
     .freq-step-btn {
       width: 14px; height: 14px; border-radius: 50%;
       border: 1.5px solid var(--border); background: none;
@@ -2736,21 +2739,23 @@ function renderHabitsInto(el) {
 
       const renderFreqEditor = () => {
         metaEl.innerHTML = `
-          <div class="habit-freq-mode">
-            <button class="freq-mode-btn${freqMode === 'days' ? ' active' : ''}" data-mode="days" type="button">Days</button>
-            <button class="freq-mode-btn${freqMode === 'perWeek' ? ' active' : ''}" data-mode="perWeek" type="button">X/week</button>
+          <div class="habit-freq-editor">
+            <div class="habit-freq-mode">
+              <button class="freq-mode-btn${freqMode === 'days' ? ' active' : ''}" data-mode="days" type="button">Days</button>
+              <button class="freq-mode-btn${freqMode === 'perWeek' ? ' active' : ''}" data-mode="perWeek" type="button">X/week</button>
+            </div>
+            ${freqMode === 'days'
+              ? `<div class="habit-freq-pills">${DAY_KEYS.map((d, i) =>
+                  `<button class="freq-pill${selected.has(d) ? ' active' : ''}" data-day="${d}" type="button">${DAY_LABELS[i]}</button>`
+                ).join('')}</div>`
+              : `<div class="habit-freq-stepper">
+                  <button class="freq-step-btn" data-step="-1" type="button">−</button>
+                  <span class="freq-step-value">${weeklyTarget}</span>
+                  <button class="freq-step-btn" data-step="1" type="button">+</button>
+                  <span class="freq-step-label">days/wk</span>
+                </div>`
+            }
           </div>
-          ${freqMode === 'days'
-            ? `<div class="habit-freq-pills">${DAY_KEYS.map((d, i) =>
-                `<button class="freq-pill${selected.has(d) ? ' active' : ''}" data-day="${d}" type="button">${DAY_LABELS[i]}</button>`
-              ).join('')}</div>`
-            : `<div class="habit-freq-stepper">
-                <button class="freq-step-btn" data-step="-1" type="button">−</button>
-                <span class="freq-step-value">${weeklyTarget}</span>
-                <button class="freq-step-btn" data-step="1" type="button">+</button>
-                <span class="freq-step-label">days/wk</span>
-              </div>`
-          }
         `;
 
         metaEl.querySelectorAll('.freq-mode-btn').forEach(btn => {
