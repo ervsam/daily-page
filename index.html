@@ -2226,17 +2226,26 @@ function save() {
 
 function carryOver() {
   if (!state.todos[TODAY]) state.todos[TODAY] = [];
-  const todayIds = new Set(state.todos[TODAY].map(t => t.id));
-  const deleted  = new Set(state.deletedIds || []);
+  const deleted = new Set(state.deletedIds || []);
 
-  // An id counts as done if ANY occurrence in the scanned window is done —
-  // a stale undone duplicate on an older day shouldn't resurrect a task
-  // that was actually finished on a different day
+  // An id already "has a home" if it's undone in today's list, or in any
+  // future day's list (e.g. explicitly moved to tomorrow via the -> button
+  // or @tomorrow) -- in either case its live/active copy has somewhere to
+  // be, so an old undone copy sitting on a past day is just history and
+  // must NOT be carried into today again. Past days are never modified by
+  // this function -- an undone entry stays exactly where it was left, as a
+  // record of "didn't get to this that day".
+  const homedIds = new Set(state.todos[TODAY].map(t => t.id));
+  for (const d of Object.keys(state.todos)) {
+    if (d > TODAY) for (const t of state.todos[d]) if (!t.done) homedIds.add(t.id);
+  }
+
+  // An id counts as done if ANY occurrence anywhere is done -- a stale
+  // undone duplicate on an older day shouldn't resurrect a task that was
+  // actually finished on a different day.
   const doneIds = new Set();
-  for (let i = 1; i <= 30; i++) {
-    const past = state.todos[dateStr(i)];
-    if (!past) continue;
-    for (const t of past) if (t.done) doneIds.add(t.id);
+  for (const d of Object.keys(state.todos)) {
+    for (const t of state.todos[d]) if (t.done) doneIds.add(t.id);
   }
 
   let carried = false;
@@ -2244,9 +2253,9 @@ function carryOver() {
     const past = state.todos[dateStr(i)];
     if (!past) continue;
     for (const t of past) {
-      if (!t.done && !doneIds.has(t.id) && !todayIds.has(t.id) && !deleted.has(t.id)) {
+      if (!t.done && !doneIds.has(t.id) && !homedIds.has(t.id) && !deleted.has(t.id)) {
         state.todos[TODAY].push({ ...t, done: false });
-        todayIds.add(t.id);
+        homedIds.add(t.id);
         carried = true;
       }
     }
